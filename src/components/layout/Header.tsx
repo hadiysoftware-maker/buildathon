@@ -13,10 +13,12 @@ interface HeaderProps {
   onMenuClick?: () => void;
   onOpenCommandPalette?: () => void;
   onOpenAccount?: () => void;
+  onToggleCopilot?: () => void;
+  copilotOpen?: boolean;
 }
 
 /** Top bar (`.ds-topbar`): search pill (Ctrl K) · notifications, theme toggle and user menu. */
-export function Header({ user, onOpenCommandPalette, onOpenAccount }: HeaderProps) {
+export function Header({ user, onOpenCommandPalette, onOpenAccount, onToggleCopilot, copilotOpen }: HeaderProps) {
   const roleDisplay = user.role.replace(/_/g, " ").toLowerCase();
   const displayName = user.fullName;
   const [userOpen, setUserOpen] = useState(false);
@@ -64,6 +66,12 @@ export function Header({ user, onOpenCommandPalette, onOpenAccount }: HeaderProp
         <button type="button" onClick={onOpenCommandPalette} className="ds-icon-btn ds-mobile-only" aria-label="Search">
           <Icon name="search" size={19} />
         </button>
+
+        {onToggleCopilot && (
+          <button type="button" className="ds-icon-btn" onClick={onToggleCopilot} aria-label="AI Copilot" aria-pressed={copilotOpen} title="AI Copilot">
+            <Icon name="sparkles" size={19} />
+          </button>
+        )}
 
         <NotificationBell />
 

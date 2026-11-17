@@ -8,6 +8,7 @@ import { Header } from "./Header";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { ResponsiveTables } from "./ResponsiveTables";
 import { CommandPalette } from "./CommandPalette";
+import { CopilotDrawer } from "./CopilotDrawer";
 import { AccountDialog } from "./AccountDialog";
 import { PermissionsProvider, type ShellUser } from "@/providers/permissions-provider";
 import { Icon } from "@/components/ui/Icon";
@@ -63,6 +64,8 @@ export function DashboardShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const hasCopilot = allowedModules.includes("ai.use");
   const pageName = useMemo(() => getPageTitle(pathname), [pathname]);
 
   useEffect(() => {
@@ -87,6 +90,8 @@ export function DashboardShell({
           onMenuClick={() => setDrawerOpen(true)}
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onOpenAccount={() => setAccountOpen(true)}
+          onToggleCopilot={hasCopilot ? () => setCopilotOpen((v) => !v) : undefined}
+          copilotOpen={copilotOpen}
         />
         <div className="ds-body">
           <Sidebar user={user} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
@@ -100,6 +105,7 @@ export function DashboardShell({
         <MobileBottomNav userRole={user.role} />
         <ResponsiveTables />
         <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} userRole={user.role} />
+        {hasCopilot && <CopilotDrawer open={copilotOpen} onClose={() => setCopilotOpen(false)} role={user.role} />}
         <AccountDialog open={accountOpen} onClose={() => setAccountOpen(false)} user={user} />
       </div>
     </PermissionsProvider>

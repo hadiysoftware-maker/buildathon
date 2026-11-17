@@ -49,6 +49,7 @@ enum SessionKind {
 enum AuthMethod {
   SMART_ID
   ADMIN_PASSWORD
+  USER_PASSWORD
   DEVICE_ENROLLMENT
 }
 

@@ -10,7 +10,7 @@ export default async function KioskLogin() {
   const s = await getSession().catch(() => null);
   if (s?.role === "STUDENT") redirect("/student");
   return (
-    <AuthShell title="Student sign in" subtitle="Hold your Smart ID card up to the camera." bubble="Show me your card!">
+    <AuthShell title="Student sign in" subtitle="Hold your Smart ID card up to the camera, or use your username." bubble="Show me your card!">
       <SmartIdLogin portal="kiosk" />
     </AuthShell>
   );

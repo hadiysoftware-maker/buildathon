@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QrScanner, type ScanOutcome } from "./QrScanner";
 import { enrollThisDevice, hasEnrolledDevice, proveDevice } from "@/lib/device-client";
+import { UserPasswordForm } from "./UserPasswordForm";
 import { Field } from "@/components/dashboard/Kit";
 import { Icon } from "@/components/ui/Icon";
 
@@ -20,6 +21,7 @@ const MESSAGES: Record<string, string> = {
 
 export function SmartIdLogin({ portal }: { portal: "kiosk" | "teacher" }) {
   const router = useRouter();
+  const [mode, setMode] = useState<"card" | "password">("card");
   const [enrolling, setEnrolling] = useState(false);
   const [code, setCode] = useState("");
   const [enrollMsg, setEnrollMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -51,8 +53,11 @@ export function SmartIdLogin({ portal }: { portal: "kiosk" | "teacher" }) {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <QrScanner onScan={onScan} />
-      {portal === "kiosk" && (
+      {mode === "card" ? <QrScanner onScan={onScan} /> : <UserPasswordForm portal={portal} />}
+      <button type="button" className="ds-btn text sm" style={{ justifySelf: "center" }} onClick={() => setMode((m) => (m === "card" ? "password" : "card"))}>
+        <Icon name={mode === "card" ? "lock" : "qr"} size={16} /> {mode === "card" ? "Use username and password instead" : "Use my Smart ID card instead"}
+      </button>
+      {mode === "card" && portal === "kiosk" && (
         <div>
           <button type="button" className="ds-btn text sm" onClick={async () => { setEnrolling((v) => !v); if (!enrolling && (await hasEnrolledDevice())) setEnrollMsg({ ok: true, text: "This device is already enrolled." }); }}>
             <Icon name="monitor" size={16} /> Enroll this laptop

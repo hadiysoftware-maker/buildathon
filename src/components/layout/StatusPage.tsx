@@ -36,7 +36,7 @@ export function StatusPage({
     <div className="ds-scope st-page">
       <header className="st-top">
         <Link href="/" aria-label="Home">
-          <Logo size={30} sub="DNAC KOONANCHERY" />
+          <Logo size={30} />
         </Link>
       </header>
 
