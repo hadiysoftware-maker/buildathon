@@ -60,7 +60,7 @@ export function Hero({
         {actions && <div className="ds-hero-actions">{actions}</div>}
       </div>
       <div className="ds-hero-mascot hidden lg:block" aria-hidden="true">
-        <Mascot mood={mood} pose={pose} prop={prop} size={184} label="Nova, the Campus 2035 robot" />
+        <Mascot mood={mood} pose={pose} prop={prop} size={184} label="Nova, the EduCore robot" />
       </div>
     </section>
   );

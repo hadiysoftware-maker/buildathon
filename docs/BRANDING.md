@@ -1,12 +1,12 @@
-# Campus 2035 branding (v2)
+# EduCore branding (v2)
 
 Brand board: `public/brand/board.html` (served at `/brand/board.html`).
 
-**Positioning.** For schools, Campus 2035 is the smart-classroom OS that turns a student's ID card into their whole school day.
+**Positioning.** For schools, EduCore is the smart-classroom OS that turns a student's ID card into their whole school day.
 Attributes: friendly, reliable, modern.
 
 ## Logo
-A bold "C" ring (Campus) with one amber square in its opening: a single cell of a Smart ID code. The card is the product's front door; the mark shows it opening.
+A bold "C" ring (Core) with one amber square in its opening: a single cell of a Smart ID code. The card is the product's front door; the mark shows it opening.
 
 | File | Use |
 |---|---|
@@ -17,7 +17,7 @@ A bold "C" ring (Campus) with one amber square in its opening: a single cell of 
 | `src/components/ui/Logo.tsx` | `LogoMark` and `Logo` (variants: color, mono, inverted, tile) |
 
 Clear space: at least the amber square's height (a quarter of the mark) on every side. Minimum size 16 px (the favicon is tested at 24 px).
-Wordmark: "Campus" in Poppins Bold, "2035" in teal (amber on dark).
+Wordmark: "Edu" in Poppins Bold, "Core" in teal (amber on dark).
 
 Don't: recolour the ring or square, rotate or outline the mark, use the square alone, or place the mark on a busy photo.
 
@@ -37,7 +37,7 @@ Dashboard tiles also use soft pink, amber, mint and teal tints, for decoration o
 Poppins (headlines) and Montserrat (text), both SIL Open Font License, loaded through `next/font`. Scale ×1.25.
 
 ## Top bar
-Deep-teal gradient (`#0B4F4A` to `#0F766E`), rounded bottom corners, translucent white controls, amber focus ring and amber "pressed" state for the Copilot toggle.
+Normal light header with the EduCore logo; the Copilot toggle sits at the right and opens the docked panel.
 
 ## Mascot
 Nova (`src/components/ui/Mascot.tsx`) is the companion for empty states, login and the Copilot. It never replaces the logo.

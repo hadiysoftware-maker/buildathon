@@ -83,9 +83,7 @@ export function DashboardShell({
     setCopilot(!(copilotOpen ?? wide));
   };
   const hasCopilot = allowedModules.includes("ai.use");
-  // The full Copilot page replaces the side panel. Read from the real URL on the client (false while hydrating) so
-  // server and client markup always match.
-  const onCopilotPage = useSyncExternalStore(() => () => {}, () => window.location.pathname.endsWith("/copilot"), () => false);
+  const onCopilotPage = pathname.endsWith("/copilot"); // the full page replaces the side panel
   const pageName = useMemo(() => getPageTitle(pathname), [pathname]);
 
   useEffect(() => {

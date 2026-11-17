@@ -40,4 +40,4 @@ Visible focus rings; icon-only buttons carry `aria-label`; status is never conve
 
 ## Brand
 
-The "Dac" owl mascot is kept (`Mascot.tsx`); the Campus 2035 logo (`Logo.tsx`, a mortarboard with a spark) replaces the previous mark.
+The "Dac" owl mascot is kept (`Mascot.tsx`); the EduCore logo (`Logo.tsx`, a mortarboard with a spark) replaces the previous mark.

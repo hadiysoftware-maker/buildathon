@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AssistantMessage } from "@/components/ai/AssistantMessage";
+import type { Block } from "@/lib/ai/blocks";
 import { Icon } from "@/components/ui/Icon";
 import { Mascot } from "@/components/ui/Mascot";
 import { toast } from "@/components/ui/Toast";
 
-interface Msg { id: string; role: "USER" | "ASSISTANT"; content: string }
+interface Msg { id: string; role: "USER" | "ASSISTANT"; content: string; blocks?: Block[] }
 interface Convo { id: string; title: string; updatedAt: string }
 
 const SUGGEST: Record<string, string[]> = {
@@ -159,9 +161,11 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
               </div>
             ) : (
               msgs.map((m) => (
-                <div key={m.id} style={{ display: "flex", justifyContent: m.role === "USER" ? "flex-end" : "flex-start" }}>
-                  <div className="cp-msg" data-role={m.role}>{m.content || (busy ? "Thinking…" : "")}</div>
-                </div>
+                m.role === "USER" ? (
+                  <div key={m.id} style={{ display: "flex", justifyContent: "flex-end" }}><div className="cp-msg" data-role="USER">{m.content}</div></div>
+                ) : (
+                  <AssistantMessage key={m.id} content={m.content} blocks={m.blocks} pending={busy} />
+                )
               ))
             )}
             <div ref={end} />

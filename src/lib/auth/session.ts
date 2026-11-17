@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -51,7 +52,7 @@ export interface CurrentSession {
 }
 
 /** Resolve the session from the cookie, re-checking credential + account state on every request. */
-export async function getSession(): Promise<CurrentSession | null> {
+async function loadSession(): Promise<CurrentSession | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -78,6 +79,9 @@ export async function getSession(): Promise<CurrentSession | null> {
     user: { id, fullName, email, photoKey },
   };
 }
+
+/** Memoised per request, so layouts, pages and actions that all ask for the session share one database lookup. */
+export const getSession = cache(loadSession);
 
 export async function destroySession() {
   const jar = await cookies();

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { TimetableBuilder } from "@/features/timetable/TimetableBuilder";
 
-export const metadata = { title: "Timetable · Campus 2035" };
+export const metadata = { title: "Timetable · EduCore" };
 
 export default async function Page() {
   const s = await requirePagePermission("timetable.manage");

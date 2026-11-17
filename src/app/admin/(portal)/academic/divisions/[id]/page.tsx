@@ -5,7 +5,7 @@ import { requirePagePermission } from "@/lib/auth/guards";
 import { KvGrid, PageHeader, PageWrap, SectionCard } from "@/components/dashboard/Kit";
 import { DAY_SHORT } from "@/lib/format";
 
-export const metadata = { title: "Division · Campus 2035" };
+export const metadata = { title: "Division · EduCore" };
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const s = await requirePagePermission("academic.manage");

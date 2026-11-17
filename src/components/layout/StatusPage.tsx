@@ -53,7 +53,7 @@ export function StatusPage({
           <span className="st-code">{code}</span>
           <span className="st-glow" />
           <div className="st-mascot">
-            <Mascot mood={mood} pose={pose} prop={prop} size={235} label="Nova, the Campus 2035 robot" />
+            <Mascot mood={mood} pose={pose} prop={prop} size={235} label="Nova, the EduCore robot" />
           </div>
         </section>
       </main>

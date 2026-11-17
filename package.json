@@ -1,5 +1,5 @@
 {
-  "name": "campus-2035",
+  "name": "educore",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",

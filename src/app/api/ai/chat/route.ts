@@ -7,12 +7,17 @@ import { prisma } from "@/lib/db";
 import { agentChat, aiConfigured, aiModel, type ChatMessage } from "@/lib/ai/gateway";
 import { runTool, toolSpecs } from "@/lib/ai/tools";
 import { systemPromptFor } from "@/lib/ai/context";
+import { packMessage, unpackMessage } from "@/lib/ai/blocks";
 import { chatCryptoConfigured, decryptChat, encryptChat } from "@/lib/ai/crypto";
 
 const Body = z.object({
   conversationId: z.string().regex(/^[a-z0-9]{10,30}$/).optional(),
   message: z.string().trim().min(1, "Type a message").max(4000),
 });
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 const HISTORY = 8; // fewer past turns keeps each request small
 
@@ -40,12 +45,16 @@ export async function POST(req: Request) {
       }
     }
 
-    const past = await prisma.aIMessage.findMany({ where: { conversationId: convo.id, role: { in: ["USER", "ASSISTANT"] } }, orderBy: { createdAt: "desc" }, take: HISTORY });
-    await prisma.aIMessage.create({ data: { conversationId: convo.id, role: "USER", content: encryptChat(s.userId, message) } });
+    // Independent reads run together; the new user message is saved while the model works.
+    const [past, system] = await Promise.all([
+      prisma.aIMessage.findMany({ where: { conversationId: convo.id, role: { in: ["USER", "ASSISTANT"] } }, orderBy: { createdAt: "desc" }, take: HISTORY }),
+      systemPromptFor(s),
+    ]);
+    const saveUser = prisma.aIMessage.create({ data: { conversationId: convo.id, role: "USER", content: encryptChat(s.userId, message) } });
 
     const messages: ChatMessage[] = [
-      { role: "system", content: await systemPromptFor(s) },
-      ...past.reverse().map((m) => ({ role: m.role === "USER" ? ("user" as const) : ("assistant" as const), content: decryptChat(s.userId, m.content) })),
+      { role: "system", content: system },
+      ...past.reverse().map((m) => ({ role: m.role === "USER" ? ("user" as const) : ("assistant" as const), content: unpackMessage(decryptChat(s.userId, m.content)).text })), // text only: visuals are not sent back to the model
       { role: "user", content: message },
     ];
 
@@ -53,9 +62,9 @@ export async function POST(req: Request) {
     const cid = convo.id;
     let stream: ReadableStream<Uint8Array>;
     try {
-      stream = await agentChat(messages, toolSpecs(s.role), (name, args) => runTool(s, name, args), async (full, usage) => {
+      stream = await agentChat(messages, toolSpecs(s.role), (name, args) => runTool(s, name, args), async (full, usage, blocks) => {
       if (full) {
-        await prisma.aIMessage.create({ data: { conversationId: cid, role: "ASSISTANT", content: encryptChat(s.userId, full), tokensIn: usage.promptTokens, tokensOut: usage.completionTokens } });
+        await prisma.aIMessage.create({ data: { conversationId: cid, role: "ASSISTANT", content: encryptChat(s.userId, packMessage(full, blocks)), tokensIn: usage.promptTokens, tokensOut: usage.completionTokens } });
         await prisma.aIConversation.update({ where: { id: cid }, data: { updatedAt: new Date() } });
       }
       await prisma.aIUsageRecord.create({
@@ -66,6 +75,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: e instanceof Error ? e.message : "The AI service could not answer." }, { status: 502 });
     }
 
+    await saveUser;
     return new Response(stream, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-conversation-id": convo.id } });
   });
 }

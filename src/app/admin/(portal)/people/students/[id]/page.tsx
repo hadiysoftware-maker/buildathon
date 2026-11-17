@@ -5,7 +5,7 @@ import { requirePagePermission } from "@/lib/auth/guards";
 import { KvGrid, PageHeader, PageWrap, PillChip, SectionCard } from "@/components/dashboard/Kit";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 
-export const metadata = { title: "Student · Campus 2035" };
+export const metadata = { title: "Student · EduCore" };
 
 const tone = (s: string) => (s === "ACTIVE" ? "ok" : s === "SUSPENDED" || s === "INACTIVE" ? "warn" : "bad");
 

@@ -4,7 +4,7 @@ import { PageHeader, PageWrap, SectionCard } from "@/components/dashboard/Kit";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { fmtDate } from "@/lib/format";
 
-export const metadata = { title: "Library · Campus 2035" };
+export const metadata = { title: "Library · EduCore" };
 
 export default async function Page() {
   const s = await requireRolePage(["STUDENT"], "/kiosk/login");

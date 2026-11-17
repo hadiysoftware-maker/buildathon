@@ -3,7 +3,7 @@ import { AuthShell } from "@/components/layout/AuthShell";
 import { SmartIdLogin } from "@/components/smart-id/SmartIdLogin";
 import { getSession } from "@/lib/auth/session";
 
-export const metadata = { title: "Teacher sign in · Campus 2035" };
+export const metadata = { title: "Teacher sign in · EduCore" };
 export const dynamic = "force-dynamic";
 
 export default async function TeacherLogin() {

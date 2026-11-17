@@ -1,4 +1,4 @@
-// Campus 2035 — MySQL 8 (InnoDB, utf8mb4) schema.
+// EduCore — MySQL 8 (InnoDB, utf8mb4) schema.
 // Conventions (see docs/DATABASE_SCHEMA.md):
 //  * Every top-level entity carries institutionId for tenant isolation.
 //  * Academic history is never hard-deleted: archivedAt / status columns instead.

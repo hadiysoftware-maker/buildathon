@@ -42,8 +42,10 @@ export async function getDaySchedule(input: { institutionId: string; userId: str
   const { dayOfWeek, minutes } = nowInZone(inst.timezone, now);
   const { date, label } = zonedDate(inst.timezone, now);
 
-  const year = await prisma.academicYear.findFirst({ where: { institutionId: input.institutionId, status: "ACTIVE" }, select: { id: true } });
-  const periods = await prisma.period.findMany({ where: { institutionId: input.institutionId, archivedAt: null }, orderBy: { sequence: "asc" } });
+  const [year, periods] = await Promise.all([
+    prisma.academicYear.findFirst({ where: { institutionId: input.institutionId, status: "ACTIVE" }, select: { id: true } }),
+    prisma.period.findMany({ where: { institutionId: input.institutionId, archivedAt: null }, orderBy: { sequence: "asc" } }),
+  ]);
   const empty: DaySchedule = { dayOfWeek, dateLabel: label, timezone: inst.timezone, rows: [], current: null, next: null, hasYear: !!year };
   if (!year) return empty;
 
@@ -56,6 +58,7 @@ export async function getDaySchedule(input: { institutionId: string; userId: str
   } as const;
 
   let entries;
+  let myTeacherId: string | null = null;
   if (input.who === "student") {
     const enr = await prisma.enrollment.findFirst({
       where: { status: "ACTIVE", academicYearId: year.id, student: { userId: input.userId } },
@@ -66,6 +69,7 @@ export async function getDaySchedule(input: { institutionId: string; userId: str
   } else {
     const t = await prisma.teacherProfile.findUnique({ where: { userId: input.userId }, select: { id: true } });
     if (!t) return empty;
+    myTeacherId = t.id;
     entries = await prisma.timetableEntry.findMany({
       where: {
         academicYearId: year.id, dayOfWeek, status: "ACTIVE",
@@ -89,8 +93,7 @@ export async function getDaySchedule(input: { institutionId: string; userId: str
     const substitute = o?.type === "SUBSTITUTED" ? o.substituteTeacher?.user.fullName ?? null : null;
     // A teacher whose class is covered by someone else no longer teaches it.
     if (input.who === "teacher" && o?.type === "SUBSTITUTED" && o.substituteTeacherId !== e.teacherId) {
-      const me = await prisma.teacherProfile.findUnique({ where: { userId: input.userId }, select: { id: true } });
-      if (me && o.substituteTeacherId !== me.id) continue;
+      if (myTeacherId && o.substituteTeacherId !== myTeacherId) continue;
     }
     rows.push({
       key: e.id,

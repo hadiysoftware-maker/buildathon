@@ -3,7 +3,7 @@ import { requirePagePermission } from "@/lib/auth/guards";
 import { StudentsManager } from "@/features/people/clients";
 import { toDateInput } from "@/lib/format";
 
-export const metadata = { title: "Students · Campus 2035" };
+export const metadata = { title: "Students · EduCore" };
 
 export default async function Page() {
   const s = await requirePagePermission("students.manage");

@@ -3,7 +3,7 @@ import { requirePagePermission } from "@/lib/auth/guards";
 import { PageHeader, PageWrap, PillChip, SectionCard } from "@/components/dashboard/Kit";
 import { fmtDateTime } from "@/lib/format";
 
-export const metadata = { title: "Audit & logins · Campus 2035" };
+export const metadata = { title: "Audit & logins · EduCore" };
 
 const words = (s: string) => s.toLowerCase().replace(/_/g, " ");
 

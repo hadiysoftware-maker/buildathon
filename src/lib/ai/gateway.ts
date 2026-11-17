@@ -1,4 +1,5 @@
 import "server-only";
+import { frame, type Block } from "./blocks";
 
 /**
  * Groq AI gateway. The only place that talks to the model provider.
@@ -122,7 +123,7 @@ export async function streamChat(
 type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 type AgentMsg = { role: "system" | "user" | "assistant" | "tool"; content: string | null; tool_calls?: ToolCall[]; tool_call_id?: string };
 
-async function completeOnce(messages: AgentMsg[], tools: unknown[], opts: { signal?: AbortSignal; maxTokens: number }) {
+async function completeOnce(messages: AgentMsg[], tools: unknown[], opts: { signal?: AbortSignal; maxTokens: number; toolChoice?: "auto" | "none" }) {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new AiNotConfigured();
   let status = 0;
@@ -135,7 +136,7 @@ async function completeOnce(messages: AgentMsg[], tools: unknown[], opts: { sign
         body: JSON.stringify({
           model,
           messages,
-          ...(withTools ? { tools, tool_choice: "auto" } : {}),
+          ...(withTools ? { tools, tool_choice: opts.toolChoice ?? "auto" } : {}),
           ...(model.includes("gpt-oss") ? { reasoning_effort: "low" } : {}),
           temperature: 0.3,
           max_completion_tokens: opts.maxTokens,
@@ -158,33 +159,41 @@ async function completeOnce(messages: AgentMsg[], tools: unknown[], opts: { sign
 export async function agentChat(
   messages: ChatMessage[],
   tools: unknown[],
-  exec: (name: string, args: string) => Promise<string>,
-  onDone: (full: string, usage: Usage) => Promise<void> | void,
+  exec: (name: string, args: string) => Promise<{ content: string; blocks: Block[] }>,
+  onDone: (full: string, usage: Usage, blocks: Block[]) => Promise<void> | void,
   opts: { signal?: AbortSignal; maxRounds?: number; maxTokens?: number } = {},
 ): Promise<ReadableStream<Uint8Array>> {
   const convo: AgentMsg[] = messages.map((m) => ({ role: m.role, content: m.content }));
   const usage: Usage = { promptTokens: 0, completionTokens: 0 };
   let text = "";
-  for (let round = 0; round < (opts.maxRounds ?? 3); round++) {
-    const last = round === (opts.maxRounds ?? 3) - 1;
-    const { message, usage: u } = await completeOnce(convo, last ? [] : tools, { signal: opts.signal, maxTokens: opts.maxTokens ?? 900 });
+  const blocks: Block[] = [];
+  for (let round = 0; round < (opts.maxRounds ?? 4); round++) {
+    const last = round === (opts.maxRounds ?? 4) - 1;
+    const { message, usage: u } = await completeOnce(convo, tools, { signal: opts.signal, maxTokens: opts.maxTokens ?? 900, toolChoice: last ? "none" : "auto" });
     usage.promptTokens = (usage.promptTokens ?? 0) + (u?.prompt_tokens ?? 0);
     usage.completionTokens = (usage.completionTokens ?? 0) + (u?.completion_tokens ?? 0);
     if (message.tool_calls?.length && !last) {
       convo.push({ role: "assistant", content: message.content ?? null, tool_calls: message.tool_calls });
-      for (const c of message.tool_calls) convo.push({ role: "tool", tool_call_id: c.id, content: await exec(c.function.name, c.function.arguments) });
+      // Independent tool calls run in parallel.
+      const results = await Promise.all(message.tool_calls.map((c) => exec(c.function.name, c.function.arguments)));
+      message.tool_calls.forEach((c, i) => {
+        blocks.push(...results[i].blocks);
+        convo.push({ role: "tool", tool_call_id: c.id, content: results[i].content });
+      });
       continue;
     }
     text = (message.content ?? "").trim();
     break;
   }
-  if (!text) text = "I could not put together an answer. Please try asking again.";
+  if (!text) text = blocks.length ? "Here is what I found." : "I could not put together an answer. Please try asking again.";
+  const shown = blocks.slice(0, 4); // at most four visuals per answer
 
   const enc = new TextEncoder();
   return new ReadableStream<Uint8Array>({
     async start(controller) {
+      for (const b of shown) controller.enqueue(enc.encode(frame(b)));
       for (let i = 0; i < text.length; i += 48) controller.enqueue(enc.encode(text.slice(i, i + 48)));
-      await onDone(text, usage);
+      await onDone(text, usage, shown);
       controller.close();
     },
   });

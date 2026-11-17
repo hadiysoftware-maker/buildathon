@@ -3,7 +3,7 @@ import { AuthShell } from "@/components/layout/AuthShell";
 import { SmartIdLogin } from "@/components/smart-id/SmartIdLogin";
 import { getSession } from "@/lib/auth/session";
 
-export const metadata = { title: "Student kiosk · Campus 2035" };
+export const metadata = { title: "Student kiosk · EduCore" };
 export const dynamic = "force-dynamic";
 
 export default async function KioskLogin() {

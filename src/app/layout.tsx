@@ -19,7 +19,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Campus 2035",
+  title: "EduCore",
   description: "Next-generation smart classroom operating system",
   other: { "color-scheme": "light" },
 };

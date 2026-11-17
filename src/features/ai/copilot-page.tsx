@@ -4,6 +4,7 @@ import type { CurrentSession } from "@/lib/auth/session";
 import { aiConfigured } from "@/lib/ai/gateway";
 import { suggestionsFor } from "@/lib/ai/context";
 import { decryptChat } from "@/lib/ai/crypto";
+import { unpackMessage } from "@/lib/ai/blocks";
 import { CopilotChat } from "./CopilotChat";
 
 /** Server half of the copilot page, shared by the admin, teacher and student portals. */
@@ -22,7 +23,7 @@ export async function CopilotPage({ s, searchParams, base, eyebrow }: { s: Curre
       aiReady={aiConfigured()}
       conversations={conversations.map((x) => ({ ...x, title: decryptChat(s.userId, x.title) }))}
       activeId={active?.id ?? null}
-      initial={messages.map((m) => ({ id: m.id, role: m.role as "USER" | "ASSISTANT", content: decryptChat(s.userId, m.content) }))}
+      initial={messages.map((m) => { const u = unpackMessage(decryptChat(s.userId, m.content)); return { id: m.id, role: m.role as "USER" | "ASSISTANT", content: u.text, blocks: u.blocks }; })}
       suggestions={suggestionsFor(s.role)}
     />
   );

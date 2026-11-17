@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { SubjectsManager } from "@/features/academic/clients";
 
-export const metadata = { title: "Subjects · Campus 2035" };
+export const metadata = { title: "Subjects · EduCore" };
 
 export default async function Page() {
   const s = await requirePagePermission("academic.manage");

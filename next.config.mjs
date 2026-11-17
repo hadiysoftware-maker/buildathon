@@ -1,10 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
+  compress: true,
+  experimental: { optimizePackageImports: ["@hugeicons/react", "@hugeicons/core-free-icons"] },
   serverExternalPackages: ["@node-rs/argon2", "mariadb"],
   async headers() {
     return [
+      { source: "/brand/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
+      { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
       {
         source: "/(.*)",
         headers: [

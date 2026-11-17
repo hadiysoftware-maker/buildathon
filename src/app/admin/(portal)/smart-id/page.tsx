@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { SmartIdManager } from "@/features/smart-id/SmartIdManager";
 
-export const metadata = { title: "Smart ID cards · Campus 2035" };
+export const metadata = { title: "Smart ID cards · EduCore" };
 
 export default async function Page() {
   const s = await requirePagePermission("smartid.manage");

@@ -1,5 +1,5 @@
 /**
- * Seed for Campus 2035.
+ * Seed for EduCore.
  *
  *   npm run db:seed                 → institution, roles, permissions, settings, default periods (idempotent)
  *   SEED_DEMO=true npm run db:seed  → additionally a small, clearly-labelled DEMO academic structure
@@ -38,7 +38,7 @@ const PERIODS: { name: string; start: string; end: string; kind: "CLASS" | "BREA
 
 async function main() {
   const code = process.env.INSTITUTION_CODE ?? "CAMPUS";
-  const name = process.env.INSTITUTION_NAME ?? "Campus 2035 Institution";
+  const name = process.env.INSTITUTION_NAME ?? "EduCore Institution";
   const timezone = process.env.INSTITUTION_TZ ?? "Asia/Kolkata";
 
   const inst = await prisma.institution.upsert({ where: { code }, create: { code, name, timezone }, update: {} });

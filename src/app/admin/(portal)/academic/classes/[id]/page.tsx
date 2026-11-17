@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { KvGrid, PageHeader, PageWrap, PillChip, SectionCard } from "@/components/dashboard/Kit";
 
-export const metadata = { title: "Class · Campus 2035" };
+export const metadata = { title: "Class · EduCore" };
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const s = await requirePagePermission("academic.manage");

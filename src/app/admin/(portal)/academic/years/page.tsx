@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { YearsManager } from "@/features/academic/clients";
 
-export const metadata = { title: "Academic years · Campus 2035" };
+export const metadata = { title: "Academic years · EduCore" };
 
 export default async function Page() {
   const s = await requirePagePermission("academic.manage");

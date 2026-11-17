@@ -5,7 +5,7 @@ import { greetingNow } from "@/lib/format";
 import { PageWrap } from "@/components/dashboard/Kit";
 import { StatGrid } from "@/components/dashboard/StatGrid";
 
-export const metadata = { title: "Admin overview · Campus 2035" };
+export const metadata = { title: "Admin overview · EduCore" };
 
 export default async function Page() {
   const s = await requireRolePage(["SUPER_ADMIN", "ADMIN"], "/admin/login");

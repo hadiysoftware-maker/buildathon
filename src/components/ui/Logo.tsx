@@ -1,5 +1,5 @@
 /**
- * Campus 2035 brand mark: a bold "C" ring (Campus) whose opening holds one amber square, a single cell of a
+ * EduCore brand mark: a bold "C" ring (Core) whose opening holds one amber square, a single cell of a
  * Smart ID code. Brand colours are fixed values (not theme tokens) so the mark never changes with the UI.
  * Variants: "color" (default), "mono" (one colour), "inverted" (for dark teal fields), "tile" (app icon / favicon).
  */
@@ -30,7 +30,7 @@ export function Logo({ size = 30, sub = "", variant = "color" }: { size?: number
       <LogoMark size={size} variant={variant} />
       <span className="flex flex-col leading-none min-w-0">
         <span className="font-heading font-bold text-base tracking-tight truncate" style={{ color: light ? "#FFFFFF" : "#0B2A2C" }}>
-          Campus<span style={{ color: light ? "#F5B83D" : "#0F766E" }}> 2035</span>
+          Edu<span style={{ color: light ? "#F5B83D" : "#0F766E" }}>Core</span>
         </span>
         {sub ? (
           <span className="hidden sm:block text-[10px] font-medium uppercase tracking-wider truncate mt-0.5" style={{ color: light ? "rgba(255,255,255,0.8)" : "#4B6B6D" }}>

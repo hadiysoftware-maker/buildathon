@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { TeachersManager } from "@/features/people/clients";
 
-export const metadata = { title: "Teachers · Campus 2035" };
+export const metadata = { title: "Teachers · EduCore" };
 
 export default async function Page() {
   const s = await requirePagePermission("teachers.manage");

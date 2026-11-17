@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AuthShell } from "@/components/layout/AuthShell";
 import { Icon } from "@/components/ui/Icon";
 
-export const metadata = { title: "Sign in · Campus 2035" };
+export const metadata = { title: "Sign in · EduCore" };
 
 const OPTIONS = [
   { href: "/kiosk/login", icon: "graduation", title: "Student", text: "Scan your Smart ID card on your learning laptop." },
@@ -12,7 +12,7 @@ const OPTIONS = [
 
 export default function LoginChooser() {
   return (
-    <AuthShell title="Welcome to Campus 2035" subtitle="Choose how you sign in." bubble="Hi! Who's joining today?" back={false}>
+    <AuthShell title="Welcome to EduCore" subtitle="Choose how you sign in." bubble="Hi! Who's joining today?" back={false}>
       <div style={{ display: "grid", gap: 10 }}>
         {OPTIONS.map((o) => (
           <Link key={o.href} href={o.href} className="ds-mod-card" style={{ display: "flex", gap: 14, alignItems: "center", padding: 16 }}>

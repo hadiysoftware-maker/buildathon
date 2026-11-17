@@ -7,7 +7,7 @@ import { PageWrap, SectionCard } from "@/components/dashboard/Kit";
 import { ComingSoon, StatGrid } from "@/components/dashboard/StatGrid";
 import { fmtDateTime, greetingNow } from "@/lib/format";
 
-export const metadata = { title: "Learning home · Campus 2035" };
+export const metadata = { title: "Learning home · EduCore" };
 
 export default async function Page() {
   const s = await requireRolePage(["STUDENT"], "/kiosk/login");

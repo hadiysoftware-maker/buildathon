@@ -3,7 +3,7 @@ import { requirePagePermission } from "@/lib/auth/guards";
 import { storageConfigured } from "@/lib/storage/r2";
 import { TeacherLibrary } from "@/features/library/TeacherLibrary";
 
-export const metadata = { title: "Library · Campus 2035" };
+export const metadata = { title: "Library · EduCore" };
 
 export default async function Page() {
   const s = await requirePagePermission("library.manage", "/teacher/login");

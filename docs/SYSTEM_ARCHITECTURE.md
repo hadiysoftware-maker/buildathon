@@ -1,4 +1,4 @@
-# Campus 2035: System architecture
+# EduCore: System architecture
 
 ## Shape
 

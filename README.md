@@ -1,4 +1,4 @@
-# Campus 2035
+# EduCore
 
 Smart-classroom OS / digital campus platform. This first pass covers the foundation, academic setup, Smart ID login (students and teachers scan a QR card; admins use email + password) and the teacher and student dashboards. Later phases (live class, attendance, assignments, quizzes, library, digital twin, AI) are documented in `docs/IMPLEMENTATION_ROADMAP.md` and are not built yet.
 

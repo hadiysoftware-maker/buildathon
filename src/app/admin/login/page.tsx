@@ -4,7 +4,7 @@ import { AdminLoginForm } from "@/components/smart-id/AdminLoginForm";
 import { getSession } from "@/lib/auth/session";
 import { isAdminRole } from "@/lib/permissions";
 
-export const metadata = { title: "Administrator · Campus 2035" };
+export const metadata = { title: "Administrator · EduCore" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminLogin() {

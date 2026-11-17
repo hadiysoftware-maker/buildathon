@@ -9,6 +9,6 @@ export default defineConfig({
   },
   datasource: {
     // A placeholder keeps `prisma generate` / `validate` working before a database exists.
-    url: process.env.DATABASE_URL ?? "mysql://placeholder:placeholder@localhost:3306/campus2035",
+    url: process.env.DATABASE_URL ?? "mysql://placeholder:placeholder@localhost:3306/educore",
   },
 });

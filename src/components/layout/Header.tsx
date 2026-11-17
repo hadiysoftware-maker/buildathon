@@ -55,7 +55,7 @@ export function Header({ homeHref, user, onOpenCommandPalette, onOpenAccount, on
       <TopProgress />
 
       <div className="ds-topbar-left">
-        <Link href={homeHref} className="ds-brand" aria-label="Campus 2035 home">
+        <Link href={homeHref} className="ds-brand" aria-label="EduCore home">
           <Logo size={34} sub="" />
         </Link>
       </div>

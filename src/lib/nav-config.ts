@@ -127,5 +127,5 @@ export function getBottomDockItems(role: string, isAllowed: (mod: string) => boo
 export function getPageTitle(pathname: string): string {
   const flat = getFlatNavPages([...ADMIN_GROUPS, ...TEACHER_GROUPS, ...STUDENT_GROUPS]);
   const hit = flat.filter((p) => pathname === p.href || pathname.startsWith(`${p.href}/`)).sort((a, b) => b.href.length - a.href.length)[0];
-  return hit?.title ?? "Campus 2035";
+  return hit?.title ?? "EduCore";
 }

@@ -71,7 +71,7 @@ export async function seedSchool(prisma: PrismaClient, institutionId: string) {
   // Teachers
   const teachers: { id: string; userId: string; name: string }[] = [];
   for (const [i, [name, spec]] of TEACHERS.entries()) {
-    const email = `${name.toLowerCase().replace(/ /g, ".")}@demo.campus2035.test`;
+    const email = `${name.toLowerCase().replace(/ /g, ".")}@demo.educore.test`;
     let u = await prisma.user.findFirst({ where: { institutionId, email }, include: { teacher: true } });
     if (!u) {
       u = await prisma.user.create({

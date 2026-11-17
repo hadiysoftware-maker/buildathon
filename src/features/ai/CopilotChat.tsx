@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageWrap } from "@/components/dashboard/Kit";
+import { AssistantMessage } from "@/components/ai/AssistantMessage";
+import type { Block } from "@/lib/ai/blocks";
 import { Icon } from "@/components/ui/Icon";
 import { Mascot } from "@/components/ui/Mascot";
 import { toast } from "@/components/ui/Toast";
 
 const newConvoId = () => "c" + Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => (b % 36).toString(36)).join("");
-export interface ChatMsg { id: string; role: "USER" | "ASSISTANT"; content: string }
+export interface ChatMsg { id: string; role: "USER" | "ASSISTANT"; content: string; blocks?: Block[] }
 export interface ConvoItem { id: string; title: string }
 
 export function CopilotChat({ base, aiReady, conversations, activeId, initial, suggestions, eyebrow }: {
@@ -83,9 +85,9 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
       </div>
       {!aiReady && <div className="cd-banner" data-tone="warn" role="status"><Icon name="alert" size={16} /> The AI service is not configured yet (GROQ_API_KEY is missing), so the copilot cannot answer.</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 220px) minmax(0, 1fr)", gap: 16, alignItems: "start" }} className="nv-chat-grid">
-        <nav aria-label="Past chats" className="cd-card" style={{ padding: 8 }}>
-          <div style={{ display: "grid", gap: 2 }}>
+      <div className="cc-grid">
+        <nav aria-label="Past chats" className="cd-card cc-history">
+          <div className="cc-history-list">
             {conversations.length === 0 && <small className="cd-muted" style={{ padding: 8 }}>No chats yet.</small>}
             {conversations.map((c) => (
               <Link key={c.id} href={`${base}?c=${c.id}`} className="ds-side-link" aria-current={c.id === cid ? "page" : undefined} style={{ minHeight: 36 }}>
@@ -95,29 +97,28 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
           </div>
         </nav>
 
-        <section className="cd-card" style={{ display: "grid", gridTemplateRows: "minmax(320px, 55vh) auto", overflow: "hidden" }}>
-          <div style={{ overflowY: "auto", padding: 16, display: "grid", gap: 12, alignContent: "start" }} aria-live="polite">
+        <section className="cd-card cc-panel">
+          <div className="cc-messages" aria-live="polite">
             {msgs.length === 0 ? (
-              <div style={{ display: "grid", justifyItems: "center", gap: 12, padding: "8px 0" }}>
+              <div className="cc-empty">
                 <Mascot mood="happy" pose="wave" prop="book" size={130} label="Nova, your study buddy" />
                 <strong>Hi, I am Nova. What shall we work on?</strong>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                <div className="cc-chips">
                   {suggestions.map((s) => <button key={s} type="button" className="ds-btn tonal sm" disabled={!aiReady || busy} onClick={() => send(s)}>{s}</button>)}
                 </div>
               </div>
             ) : (
-              msgs.map((m) => (
-                <div key={m.id} style={{ display: "flex", justifyContent: m.role === "USER" ? "flex-end" : "flex-start" }}>
-                  <div style={{ maxWidth: "min(680px, 90%)", padding: "10px 14px", borderRadius: 16, whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.5,
-                    background: m.role === "USER" ? "var(--md-primary)" : "var(--md-surface-container-low)", color: m.role === "USER" ? "var(--md-on-primary)" : "var(--md-on-surface)" }}>
-                    {m.content || (busy ? "Thinking…" : "")}
-                  </div>
-                </div>
-              ))
+              msgs.map((m) =>
+                m.role === "USER" ? (
+                  <div key={m.id} style={{ display: "flex", justifyContent: "flex-end" }}><div className="cp-msg" data-role="USER" style={{ maxWidth: "min(680px, 90%)" }}>{m.content}</div></div>
+                ) : (
+                  <AssistantMessage key={m.id} content={m.content} blocks={m.blocks} pending={busy} />
+                ),
+              )
             )}
             <div ref={end} />
           </div>
-          <form onSubmit={(e) => { e.preventDefault(); void send(text); }} style={{ display: "flex", gap: 8, padding: 12, borderTop: "1px solid var(--md-outline-variant)" }}>
+          <form className="cc-form" onSubmit={(e) => { e.preventDefault(); void send(text); }}>
             <input value={text} onChange={(e) => setText(e.target.value)} placeholder={aiReady ? "Ask anything…" : "Copilot unavailable"} maxLength={4000} disabled={!aiReady} aria-label="Message" style={{ flex: 1 }} />
             <button type="submit" className="ds-btn sm" disabled={!aiReady || busy || !text.trim()}><Icon name="send" size={16} /> Send</button>
           </form>

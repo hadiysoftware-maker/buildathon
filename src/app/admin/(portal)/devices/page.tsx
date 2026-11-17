@@ -3,7 +3,7 @@ import { requirePagePermission } from "@/lib/auth/guards";
 import { hasPermission } from "@/lib/permissions";
 import { DevicesManager } from "@/features/smart-id/DevicesManager";
 
-export const metadata = { title: "Devices · Campus 2035" };
+export const metadata = { title: "Devices · EduCore" };
 
 export default async function Page() {
   const s = await requirePagePermission("devices.manage");

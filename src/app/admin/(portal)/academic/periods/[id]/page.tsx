@@ -6,7 +6,7 @@ import { KvGrid, PageHeader, PageWrap, PillChip, SectionCard } from "@/component
 import { DAY_NAMES } from "@/lib/format";
 import { toMinutes } from "@/lib/timetable/schedule";
 
-export const metadata = { title: "Period · Campus 2035" };
+export const metadata = { title: "Period · EduCore" };
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const s = await requirePagePermission("academic.manage");

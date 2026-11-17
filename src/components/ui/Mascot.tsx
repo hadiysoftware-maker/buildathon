@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 /**
- * "Nova", the Campus 2035 study buddy: a round little robot with a glowing face screen.
+ * "Nova", the EduCore study buddy: a round little robot with a glowing face screen.
  * It watches the cursor and reacts to how close it gets:
  *   far → its resting mood · near → curious (eyes widen, follows you) · close → happy (smile, blush, glowing antenna)
  *   very close → delighted (happy eyes, hearts, bounce) · click/tap → surprised burst.
