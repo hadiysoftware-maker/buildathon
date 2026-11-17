@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.env
+.env.local
+src/generated
+coverage
+playwright-report
+test-results
+*.tsbuildinfo
+next-env.d.ts
+
+.seed
+.claude

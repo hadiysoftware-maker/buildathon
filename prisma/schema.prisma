@@ -1,0 +1,1797 @@
+// Campus 2035 — MySQL 8 (InnoDB, utf8mb4) schema.
+// Conventions (see docs/DATABASE_SCHEMA.md):
+//  * Every top-level entity carries institutionId for tenant isolation.
+//  * Academic history is never hard-deleted: archivedAt / status columns instead.
+//  * Large files live in object storage (R2); FileObject stores metadata only.
+//  * Actor columns named *ById without a relation are audit references (plain ids)
+//    so history survives even if the referenced account is archived.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider     = "mysql"
+  relationMode = "foreignKeys"
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum RoleKey {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  STUDENT
+  GUARDIAN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum CredentialStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+  REPLACED
+}
+
+enum SessionKind {
+  ADMIN_WEB
+  SMART_ID_WEB
+  KIOSK
+}
+
+enum AuthMethod {
+  SMART_ID
+  ADMIN_PASSWORD
+  DEVICE_ENROLLMENT
+}
+
+enum AuthResult {
+  SUCCESS
+  INVALID_CREDENTIAL
+  REVOKED
+  SUSPENDED
+  REPLACED
+  ACCOUNT_INACTIVE
+  DEVICE_UNAUTHORIZED
+  WRONG_PORTAL
+  RATE_LIMITED
+  LOCKED
+}
+
+enum DeviceStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  RETIRED
+}
+
+enum AcademicYearStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum PeriodKind {
+  CLASS
+  BREAK
+  LUNCH
+}
+
+enum SubjectType {
+  THEORY
+  PRACTICAL
+  BOTH
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  TRANSFERRED
+  COMPLETED
+  WITHDRAWN
+}
+
+enum TimetableEntryStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum TimetableOverrideType {
+  CANCELLED
+  SUBSTITUTED
+}
+
+enum ClassroomSessionStatus {
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+  LEFT_EARLY
+}
+
+enum AttendanceSource {
+  TEACHER_SCAN
+  TEACHER_MANUAL
+  SESSION_SIGNAL
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum SubmissionType {
+  WRITTEN
+  PDF
+  DOCUMENT
+  IMAGE
+  VIDEO
+  MULTIPLE_CHOICE
+  SHORT_ANSWER
+  PRACTICAL
+  PROJECT
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  LATE
+  GRADED
+  RETURNED
+  RESUBMIT_REQUESTED
+}
+
+enum GradeStatus {
+  DRAFT
+  RELEASED
+}
+
+enum MaterialType {
+  PDF
+  EPUB
+  VIDEO
+  DOCUMENT
+  LINK
+  NOTE
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  FILL_BLANK
+  DESCRIPTIVE
+  IMAGE_BASED
+  POLL
+  APPLICATION
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  ADVANCED
+}
+
+enum ContentSource {
+  MANUAL
+  AI_GENERATED
+}
+
+enum QuizSessionStatus {
+  SCHEDULED
+  LIVE
+  CLOSED
+}
+
+enum AssessmentType {
+  EXAM
+  TEST
+  PRACTICAL
+  INTERNAL
+}
+
+enum PortfolioEntryType {
+  QUIZ
+  ASSIGNMENT
+  PROJECT
+  ACHIEVEMENT
+  CERTIFICATE
+  SKILL
+  MILESTONE
+  EXAM_RESULT
+}
+
+enum ReviewStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RecommendationSource {
+  AI
+  TEACHER
+}
+
+enum CopilotStatus {
+  IDLE
+  CAPTURING
+  PAUSED
+  STOPPED
+  REVIEW
+  PUBLISHED
+}
+
+enum TranscriptSource {
+  MICROPHONE
+  MANUAL
+  UPLOAD
+}
+
+enum AIMessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+}
+
+enum UrlRuleKind {
+  DOMAIN
+  URL_PREFIX
+}
+
+// ───────────────────────────── Institution & identity ─────────────────────────────
+
+model Institution {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  code      String   @unique @db.VarChar(32)
+  name      String   @db.VarChar(160)
+  logoKey   String?  @db.VarChar(255)
+  timezone  String   @default("Asia/Kolkata") @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings      InstitutionSetting[]
+  users         User[]
+  roles         Role[]
+  academicYears AcademicYear[]
+  departments   Department[]
+  courses       Course[]
+  classes       Class[]
+  divisions     Division[]
+  classrooms    Classroom[]
+  subjects      Subject[]
+  periods       Period[]
+  timetable     TimetableEntry[]
+  credentials   SmartIdCredential[]
+  sessions      AuthSession[]
+  devices       RegisteredDevice[]
+  authLogs      AuthenticationLog[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  files         FileObject[]
+  assignments   Assignment[]
+  materials     LearningMaterial[]
+  textbooks     Textbook[]
+  questions     Question[]
+  quizzes       Quiz[]
+  assessments   Assessment[]
+  frameworks    CompetencyFramework[]
+  aiProviders   AIProvider[]
+  aiUsage       AIUsageRecord[]
+  browserPolicy BrowserPolicy[]
+  devicePolicy  DevicePolicy[]
+}
+
+model InstitutionSetting {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  institutionId String      @db.VarChar(30)
+  key           String      @db.VarChar(80)
+  value         Json
+  updatedAt     DateTime    @updatedAt
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, key])
+}
+
+model User {
+  id             String     @id @default(cuid()) @db.VarChar(30)
+  institutionId  String     @db.VarChar(30)
+  fullName       String     @db.VarChar(160)
+  email          String?    @db.VarChar(191)
+  username       String?    @db.VarChar(40)
+  photoKey       String?    @db.VarChar(255)
+  status         UserStatus @default(ACTIVE)
+  // Only administrators have a password. Students/teachers authenticate with Smart ID cards.
+  passwordHash   String?    @db.VarChar(255)
+  failedLogins   Int        @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  archivedAt     DateTime?
+
+  institution    Institution         @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  roles          UserRole[]
+  student        StudentProfile?
+  teacher        TeacherProfile?
+  guardian       GuardianProfile?
+  credentials    SmartIdCredential[]
+  sessions       AuthSession[]
+  authLogs       AuthenticationLog[]
+  notifications  Notification[]
+  conversations  AIConversation[]
+  aiUsage        AIUsageRecord[]
+  uploadedFiles  FileObject[]
+
+  @@unique([institutionId, email])
+  @@unique([institutionId, username])
+  @@index([institutionId, status])
+}
+
+model Role {
+  id            String           @id @default(cuid()) @db.VarChar(30)
+  institutionId String           @db.VarChar(30)
+  key           RoleKey
+  name          String           @db.VarChar(80)
+  institution   Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  users         UserRole[]
+  permissions   RolePermission[]
+
+  @@unique([institutionId, key])
+}
+
+model Permission {
+  id          String           @id @default(cuid()) @db.VarChar(30)
+  key         String           @unique @db.VarChar(80)
+  description String           @db.VarChar(255)
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String     @db.VarChar(30)
+  permissionId String     @db.VarChar(30)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId    String   @db.VarChar(30)
+  roleId    String   @db.VarChar(30)
+  grantedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@id([userId, roleId])
+}
+
+model StudentProfile {
+  id              String    @id @default(cuid()) @db.VarChar(30)
+  userId          String    @unique @db.VarChar(30)
+  institutionId   String    @db.VarChar(30)
+  studentCode     String    @db.VarChar(40)
+  admissionNumber String    @db.VarChar(40)
+  phone           String?   @db.VarChar(32)
+  dateOfBirth     DateTime? @db.Date
+  guardianName    String?   @db.VarChar(160)
+  guardianPhone   String?   @db.VarChar(32)
+  guardianRelation String?  @db.VarChar(40)
+  departmentId    String?   @db.VarChar(30)
+  courseId        String?   @db.VarChar(30)
+  admissionDate   DateTime? @db.Date
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department      Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  course          Course?            @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  enrollments     Enrollment[]
+  devices         RegisteredDevice[]
+  guardians       GuardianLink[]
+  attendance      Attendance[]
+  participations  ClassroomParticipant[]
+  assignmentTargets AssignmentTarget[]
+  submissions     Submission[]
+  bookmarks       StudentBookmark[]
+  notes           StudentNote[]
+  readingProgress ReadingProgress[]
+  quizResponses   QuizResponse[]
+  results         AssessmentResult[]
+  portfolio       StudentPortfolio?
+  skills          StudentSkill[]
+  competencyAssessments CompetencyAssessment[]
+  projects        StudentProject[]
+  projectCollabs  ProjectCollaborator[]
+  achievements    Achievement[]
+  milestones      LearningMilestone[]
+  recommendations LearningRecommendation[]
+  publications    CopilotPublication[]
+
+  @@unique([institutionId, studentCode])
+  @@unique([institutionId, admissionNumber])
+}
+
+model TeacherProfile {
+  id             String   @id @default(cuid()) @db.VarChar(30)
+  userId         String   @unique @db.VarChar(30)
+  institutionId  String   @db.VarChar(30)
+  teacherCode    String   @db.VarChar(40)
+  employeeId     String   @db.VarChar(40)
+  phone          String?  @db.VarChar(32)
+  departmentId   String?  @db.VarChar(30)
+  qualification  String?  @db.VarChar(160)
+  designation    String?  @db.VarChar(120)
+  specialization String?  @db.VarChar(160)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department        Department?          @relation("DepartmentTeachers", fields: [departmentId], references: [id], onDelete: SetNull)
+  headOf            Department[]         @relation("DepartmentHead")
+  classTeacherOf    Division[]
+  assignments       TeacherAssignment[]
+  timetable         TimetableEntry[]
+  substitutions     TimetableOverride[]
+  classroomSessions ClassroomSession[]
+  attendanceTaken   Attendance[]
+  createdAssignments Assignment[]
+  copilotSessions   CopilotSession[]
+
+  @@unique([institutionId, teacherCode])
+  @@unique([institutionId, employeeId])
+}
+
+model GuardianProfile {
+  id        String         @id @default(cuid()) @db.VarChar(30)
+  userId    String         @unique @db.VarChar(30)
+  phone     String?        @db.VarChar(32)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students  GuardianLink[]
+}
+
+model GuardianLink {
+  guardianId String          @db.VarChar(30)
+  studentId  String          @db.VarChar(30)
+  relation   String          @db.VarChar(40)
+  approved   Boolean         @default(false)
+  guardian   GuardianProfile @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  student    StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([guardianId, studentId])
+}
+
+/// A physical Smart ID card credential. The QR encodes `C35:<id>.<secret>`;
+/// only an HMAC of the secret is stored. The id doubles as the opaque card reference.
+model SmartIdCredential {
+  id            String           @id @default(cuid()) @db.VarChar(30)
+  institutionId String           @db.VarChar(30)
+  userId        String           @db.VarChar(30)
+  secretHash    String           @db.Char(64)
+  cardNumber    Int              @default(1)
+  status        CredentialStatus @default(ACTIVE)
+  issuedAt      DateTime         @default(now())
+  issuedById    String?          @db.VarChar(30)
+  statusChangedAt DateTime?
+  statusChangedById String?      @db.VarChar(30)
+  statusReason  String?          @db.VarChar(255)
+  replacedById  String?          @unique @db.VarChar(30)
+  lastUsedAt    DateTime?
+
+  institution   Institution        @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  replacedBy    SmartIdCredential? @relation("CredentialReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces      SmartIdCredential? @relation("CredentialReplacement")
+  sessions      AuthSession[]
+  authLogs      AuthenticationLog[]
+
+  @@index([userId, status])
+  @@index([institutionId, status])
+}
+
+model AuthSession {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  tokenHash     String      @unique @db.Char(64)
+  institutionId String      @db.VarChar(30)
+  userId        String      @db.VarChar(30)
+  kind          SessionKind
+  role          RoleKey
+  credentialId  String?     @db.VarChar(30)
+  deviceId      String?     @db.VarChar(30)
+  ip            String?     @db.VarChar(64)
+  userAgent     String?     @db.VarChar(255)
+  createdAt     DateTime    @default(now())
+  lastSeenAt    DateTime    @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokeReason  String?     @db.VarChar(120)
+
+  institution   Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential    SmartIdCredential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  device        RegisteredDevice?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([userId, revokedAt])
+  @@index([credentialId])
+  @@index([expiresAt])
+}
+
+/// Institution-issued laptop. Identity is proven by a non-extractable ECDSA key
+/// registered during enrollment, never by browser fingerprinting.
+model RegisteredDevice {
+  id                  String       @id @default(cuid()) @db.VarChar(30)
+  institutionId       String       @db.VarChar(30)
+  assetTag            String       @db.VarChar(60)
+  label               String       @db.VarChar(120)
+  assignedStudentId   String?      @db.VarChar(30)
+  status              DeviceStatus @default(PENDING)
+  publicKeyJwk        Json?
+  enrollmentCodeHash  String?      @db.Char(64)
+  enrollmentExpiresAt DateTime?
+  enrolledAt          DateTime?
+  lastSeenAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  institution     Institution        @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  assignedStudent StudentProfile?    @relation(fields: [assignedStudentId], references: [id], onDelete: SetNull)
+  sessions        AuthSession[]
+  challenges      DeviceChallenge[]
+  authLogs        AuthenticationLog[]
+
+  @@unique([institutionId, assetTag])
+  @@index([assignedStudentId])
+}
+
+model DeviceChallenge {
+  id        String           @id @default(cuid()) @db.VarChar(30)
+  deviceId  String           @db.VarChar(30)
+  nonce     String           @unique @db.VarChar(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  device    RegisteredDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, expiresAt])
+}
+
+model AuthenticationLog {
+  id            String       @id @default(cuid()) @db.VarChar(30)
+  institutionId String?      @db.VarChar(30)
+  userId        String?      @db.VarChar(30)
+  credentialId  String?      @db.VarChar(30)
+  deviceId      String?      @db.VarChar(30)
+  method        AuthMethod
+  result        AuthResult
+  portal        String?      @db.VarChar(20)
+  ip            String?      @db.VarChar(64)
+  userAgent     String?      @db.VarChar(255)
+  createdAt     DateTime     @default(now())
+
+  institution   Institution?       @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  user          User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  credential    SmartIdCredential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  device        RegisteredDevice?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([credentialId, createdAt])
+  @@index([institutionId, createdAt])
+}
+
+model RateLimitBucket {
+  key         String   @id @db.VarChar(191)
+  count       Int
+  windowStart DateTime
+}
+
+// ───────────────────────────── Academic structure ─────────────────────────────
+
+model AcademicYear {
+  id            String             @id @default(cuid()) @db.VarChar(30)
+  institutionId String             @db.VarChar(30)
+  name          String             @db.VarChar(40)
+  startDate     DateTime           @db.Date
+  endDate       DateTime           @db.Date
+  status        AcademicYearStatus @default(DRAFT)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  institution   Institution         @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  classes       Class[]
+  enrollments   Enrollment[]
+  teacherAssignments TeacherAssignment[]
+  timetable     TimetableEntry[]
+
+  @@unique([institutionId, name])
+  @@index([institutionId, status])
+}
+
+model Department {
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  institutionId String    @db.VarChar(30)
+  code          String    @db.VarChar(20)
+  name          String    @db.VarChar(120)
+  headTeacherId String?   @db.VarChar(30)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  archivedAt    DateTime?
+
+  institution   Institution         @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  head          TeacherProfile?     @relation("DepartmentHead", fields: [headTeacherId], references: [id], onDelete: SetNull)
+  teachers      TeacherProfile[]    @relation("DepartmentTeachers")
+  courses       Course[]
+  subjects      Subject[]
+  students      StudentProfile[]
+  frameworks    CompetencyFramework[]
+
+  @@unique([institutionId, code])
+}
+
+model Course {
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  institutionId String    @db.VarChar(30)
+  departmentId  String    @db.VarChar(30)
+  code          String    @db.VarChar(20)
+  name          String    @db.VarChar(160)
+  durationYears Int       @default(3)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  archivedAt    DateTime?
+
+  institution   Institution      @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  department    Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  classes       Class[]
+  subjects      CourseSubject[]
+  students      StudentProfile[]
+
+  @@unique([institutionId, code])
+}
+
+model CourseSubject {
+  courseId  String  @db.VarChar(30)
+  subjectId String  @db.VarChar(30)
+  yearLevel Int     @default(1)
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@id([courseId, subjectId])
+}
+
+/// A cohort of a course in an academic year (e.g. "B.Sc Computer Science — Year 1").
+model Class {
+  id             String    @id @default(cuid()) @db.VarChar(30)
+  institutionId  String    @db.VarChar(30)
+  courseId       String    @db.VarChar(30)
+  academicYearId String    @db.VarChar(30)
+  name           String    @db.VarChar(120)
+  yearLevel      Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  archivedAt     DateTime?
+
+  institution    Institution  @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  course         Course       @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  divisions      Division[]
+
+  @@unique([academicYearId, courseId, yearLevel, name])
+  @@index([institutionId])
+}
+
+/// A division / section of a class — the unit students enroll into and that has a timetable.
+model Division {
+  id             String    @id @default(cuid()) @db.VarChar(30)
+  institutionId  String    @db.VarChar(30)
+  classId        String    @db.VarChar(30)
+  name           String    @db.VarChar(20)
+  capacity       Int       @default(60)
+  classTeacherId String?   @db.VarChar(30)
+  classroomId    String?   @db.VarChar(30)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  archivedAt     DateTime?
+
+  institution    Institution         @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  class          Class               @relation(fields: [classId], references: [id], onDelete: Restrict)
+  classTeacher   TeacherProfile?     @relation(fields: [classTeacherId], references: [id], onDelete: SetNull)
+  classroom      Classroom?          @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  enrollments    Enrollment[]
+  teacherAssignments TeacherAssignment[]
+  timetable      TimetableEntry[]
+  attendance     Attendance[]
+  assignments    Assignment[]
+  materialAssignments MaterialAssignment[]
+  quizzes        Quiz[]
+  assessments    Assessment[]
+  publications   CopilotPublication[]
+  browserPolicies BrowserPolicy[]
+  devicePolicies DevicePolicy[]
+
+  @@unique([classId, name])
+}
+
+model Classroom {
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  institutionId String    @db.VarChar(30)
+  code          String    @db.VarChar(20)
+  name          String    @db.VarChar(120)
+  building      String?   @db.VarChar(120)
+  capacity      Int       @default(60)
+  hasSmartBoard Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  archivedAt    DateTime?
+
+  institution   Institution      @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  divisions     Division[]
+  timetable     TimetableEntry[]
+
+  @@unique([institutionId, code])
+}
+
+model Subject {
+  id             String      @id @default(cuid()) @db.VarChar(30)
+  institutionId  String      @db.VarChar(30)
+  departmentId   String?     @db.VarChar(30)
+  code           String      @db.VarChar(20)
+  name           String      @db.VarChar(160)
+  type           SubjectType @default(THEORY)
+  credits        Decimal     @default(0) @db.Decimal(4, 1)
+  periodsPerWeek Int         @default(4)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  archivedAt     DateTime?
+
+  institution    Institution         @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  department     Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  courses        CourseSubject[]
+  teacherAssignments TeacherAssignment[]
+  timetable      TimetableEntry[]
+  attendance     Attendance[]
+  assignments    Assignment[]
+  materials      LearningMaterial[]
+  textbooks      Textbook[]
+  questions      Question[]
+  quizzes        Quiz[]
+  assessments    Assessment[]
+  skills         Skill[]
+  projects       StudentProject[]
+  recommendations LearningRecommendation[]
+  browserPolicies BrowserPolicy[]
+
+  @@unique([institutionId, code])
+}
+
+/// Configurable bell schedule slot. Times are "HH:MM" strings in the institution timezone.
+model Period {
+  id            String     @id @default(cuid()) @db.VarChar(30)
+  institutionId String     @db.VarChar(30)
+  name          String     @db.VarChar(40)
+  sequence      Int
+  startTime     String     @db.Char(5)
+  endTime       String     @db.Char(5)
+  kind          PeriodKind @default(CLASS)
+  archivedAt    DateTime?
+
+  institution   Institution      @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  timetable     TimetableEntry[]
+  attendance    Attendance[]
+
+  @@unique([institutionId, sequence])
+}
+
+model Enrollment {
+  id             String           @id @default(cuid()) @db.VarChar(30)
+  studentId      String           @db.VarChar(30)
+  divisionId     String           @db.VarChar(30)
+  academicYearId String           @db.VarChar(30)
+  rollNumber     Int?
+  status         EnrollmentStatus @default(ACTIVE)
+  enrolledAt     DateTime         @default(now())
+  endedAt        DateTime?
+
+  student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  division       Division       @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, academicYearId, divisionId])
+  @@unique([divisionId, rollNumber])
+  @@index([divisionId, status])
+}
+
+/// Which teacher teaches which subject to which division in a year.
+model TeacherAssignment {
+  id             String   @id @default(cuid()) @db.VarChar(30)
+  academicYearId String   @db.VarChar(30)
+  divisionId     String   @db.VarChar(30)
+  subjectId      String   @db.VarChar(30)
+  teacherId      String   @db.VarChar(30)
+  periodsPerWeek Int?
+  createdAt      DateTime @default(now())
+
+  academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  division       Division       @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  subject        Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher        TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+
+  @@unique([divisionId, subjectId])
+  @@index([teacherId])
+}
+
+model TimetableEntry {
+  id             String               @id @default(cuid()) @db.VarChar(30)
+  institutionId  String               @db.VarChar(30)
+  academicYearId String               @db.VarChar(30)
+  divisionId     String               @db.VarChar(30)
+  dayOfWeek      Int                  @db.TinyInt
+  periodId       String               @db.VarChar(30)
+  subjectId      String               @db.VarChar(30)
+  teacherId      String               @db.VarChar(30)
+  classroomId    String?              @db.VarChar(30)
+  status         TimetableEntryStatus @default(ACTIVE)
+  notes          String?              @db.VarChar(255)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  institution    Institution         @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  academicYear   AcademicYear        @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  division       Division            @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  period         Period              @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  subject        Subject             @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher        TeacherProfile      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  classroom      Classroom?          @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  overrides      TimetableOverride[]
+  sessions       ClassroomSession[]
+  attendance     Attendance[]
+
+  @@unique([divisionId, dayOfWeek, periodId])
+  @@index([teacherId, dayOfWeek, periodId])
+  @@index([classroomId, dayOfWeek, periodId])
+  @@index([academicYearId])
+}
+
+/// Date-specific change to a weekly timetable entry (cancellation or substitution).
+model TimetableOverride {
+  id                  String                @id @default(cuid()) @db.VarChar(30)
+  entryId             String                @db.VarChar(30)
+  date                DateTime              @db.Date
+  type                TimetableOverrideType
+  substituteTeacherId String?               @db.VarChar(30)
+  reason              String?               @db.VarChar(255)
+  createdById         String?               @db.VarChar(30)
+  createdAt           DateTime              @default(now())
+
+  entry               TimetableEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  substituteTeacher   TeacherProfile? @relation(fields: [substituteTeacherId], references: [id], onDelete: SetNull)
+
+  @@unique([entryId, date])
+}
+
+// ───────────────────────────── Live classroom & attendance ─────────────────────────────
+
+model ClassroomSession {
+  id               String                 @id @default(cuid()) @db.VarChar(30)
+  timetableEntryId String                 @db.VarChar(30)
+  date             DateTime               @db.Date
+  teacherId        String                 @db.VarChar(30)
+  status           ClassroomSessionStatus @default(SCHEDULED)
+  startedAt        DateTime?
+  endedAt          DateTime?
+  topicsCovered    String?                @db.Text
+  teacherObservations String?             @db.Text
+  createdAt        DateTime               @default(now())
+
+  timetableEntry   TimetableEntry          @relation(fields: [timetableEntryId], references: [id], onDelete: Restrict)
+  teacher          TeacherProfile          @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  participants     ClassroomParticipant[]
+  events           ClassroomEvent[]
+  announcements    ClassroomAnnouncement[]
+  attendance       Attendance[]
+  quizSessions     QuizSession[]
+  copilot          CopilotSession[]
+
+  @@unique([timetableEntryId, date])
+  @@index([teacherId, date])
+}
+
+model ClassroomParticipant {
+  id          String           @id @default(cuid()) @db.VarChar(30)
+  sessionId   String           @db.VarChar(30)
+  studentId   String           @db.VarChar(30)
+  joinedAt    DateTime         @default(now())
+  lastSeenAt  DateTime         @default(now())
+  leftAt      DateTime?
+  session     ClassroomSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student     StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, studentId])
+}
+
+model ClassroomEvent {
+  id        String           @id @default(cuid()) @db.VarChar(30)
+  sessionId String           @db.VarChar(30)
+  type      String           @db.VarChar(60)
+  payload   Json?
+  actorId   String?          @db.VarChar(30)
+  createdAt DateTime         @default(now())
+  session   ClassroomSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model ClassroomAnnouncement {
+  id          String           @id @default(cuid()) @db.VarChar(30)
+  sessionId   String           @db.VarChar(30)
+  message     String           @db.VarChar(500)
+  createdById String           @db.VarChar(30)
+  createdAt   DateTime         @default(now())
+  session     ClassroomSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+/// One attendance record per student per scheduled period per date.
+model Attendance {
+  id               String           @id @default(cuid()) @db.VarChar(30)
+  studentId        String           @db.VarChar(30)
+  timetableEntryId String           @db.VarChar(30)
+  date             DateTime         @db.Date
+  divisionId       String           @db.VarChar(30)
+  subjectId        String           @db.VarChar(30)
+  periodId         String           @db.VarChar(30)
+  teacherId        String           @db.VarChar(30)
+  sessionId        String?          @db.VarChar(30)
+  status           AttendanceStatus
+  source           AttendanceSource
+  recordedAt       DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  note             String?          @db.VarChar(255)
+
+  student          StudentProfile    @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  timetableEntry   TimetableEntry    @relation(fields: [timetableEntryId], references: [id], onDelete: Restrict)
+  division         Division          @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  subject          Subject           @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  period           Period            @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  teacher          TeacherProfile    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  session          ClassroomSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, timetableEntryId, date])
+  @@index([divisionId, date])
+  @@index([teacherId, date])
+}
+
+// ───────────────────────────── Files ─────────────────────────────
+
+/// Object-storage metadata (Cloudflare R2 / S3). Bytes never live in MySQL.
+model FileObject {
+  id            String   @id @default(cuid()) @db.VarChar(30)
+  institutionId String   @db.VarChar(30)
+  bucket        String   @db.VarChar(80)
+  objectKey     String   @db.VarChar(512)
+  fileName      String   @db.VarChar(255)
+  mimeType      String   @db.VarChar(120)
+  sizeBytes     BigInt
+  sha256        String?  @db.Char(64)
+  uploadedById  String?  @db.VarChar(30)
+  createdAt     DateTime @default(now())
+  deletedAt     DateTime?
+
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  uploadedBy    User?       @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  assignmentAttachments AssignmentAttachment[]
+  submissionFiles SubmissionFile[]
+  textbooks     Textbook[]
+  materials     LearningMaterial[]
+  projectAttachments ProjectAttachment[]
+  achievements  Achievement[]
+  questions     Question[]
+
+  @@unique([bucket, objectKey])
+}
+
+// ───────────────────────────── Assignments ─────────────────────────────
+
+model Assignment {
+  id                String           @id @default(cuid()) @db.VarChar(30)
+  institutionId     String           @db.VarChar(30)
+  title             String           @db.VarChar(200)
+  instructions      String           @db.Text
+  subjectId         String           @db.VarChar(30)
+  divisionId        String           @db.VarChar(30)
+  teacherId         String           @db.VarChar(30)
+  createdById       String           @db.VarChar(30)
+  submissionType    SubmissionType
+  maxMarks          Decimal          @db.Decimal(6, 2)
+  publishAt         DateTime?
+  dueAt             DateTime
+  allowLate         Boolean          @default(false)
+  allowResubmission Boolean          @default(false)
+  status            AssignmentStatus @default(DRAFT)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  institution       Institution            @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  subject           Subject                @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  division          Division               @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  teacher           TeacherProfile         @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  targets           AssignmentTarget[]
+  attachments       AssignmentAttachment[]
+  submissions       Submission[]
+
+  @@index([divisionId, status])
+  @@index([teacherId])
+}
+
+model AssignmentTarget {
+  assignmentId String         @db.VarChar(30)
+  studentId    String         @db.VarChar(30)
+  assignment   Assignment     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@id([assignmentId, studentId])
+}
+
+model AssignmentAttachment {
+  assignmentId String     @db.VarChar(30)
+  fileId       String     @db.VarChar(30)
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  file         FileObject @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@id([assignmentId, fileId])
+}
+
+model Submission {
+  id           String           @id @default(cuid()) @db.VarChar(30)
+  assignmentId String           @db.VarChar(30)
+  studentId    String           @db.VarChar(30)
+  attempt      Int              @default(1)
+  status       SubmissionStatus @default(SUBMITTED)
+  textAnswer   String?          @db.Text
+  isLate       Boolean          @default(false)
+  submittedAt  DateTime         @default(now())
+
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  student      StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  files        SubmissionFile[]
+  grade        Grade?
+  feedback     Feedback[]
+
+  @@unique([assignmentId, studentId, attempt])
+}
+
+model SubmissionFile {
+  submissionId String     @db.VarChar(30)
+  fileId       String     @db.VarChar(30)
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  file         FileObject @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@id([submissionId, fileId])
+}
+
+model Grade {
+  id           String      @id @default(cuid()) @db.VarChar(30)
+  submissionId String      @unique @db.VarChar(30)
+  marks        Decimal     @db.Decimal(6, 2)
+  status       GradeStatus @default(DRAFT)
+  gradedById   String      @db.VarChar(30)
+  gradedAt     DateTime    @default(now())
+  releasedAt   DateTime?
+  submission   Submission  @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+}
+
+model Feedback {
+  id           String     @id @default(cuid()) @db.VarChar(30)
+  submissionId String     @db.VarChar(30)
+  authorId     String     @db.VarChar(30)
+  body         String     @db.Text
+  createdAt    DateTime   @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+// ───────────────────────────── Digital library ─────────────────────────────
+
+model Textbook {
+  id            String       @id @default(cuid()) @db.VarChar(30)
+  institutionId String       @db.VarChar(30)
+  subjectId     String?      @db.VarChar(30)
+  title         String       @db.VarChar(255)
+  authors       String?      @db.VarChar(255)
+  isbn          String?      @db.VarChar(20)
+  format        MaterialType @default(PDF)
+  fileId        String?      @db.VarChar(30)
+  pageCount     Int?
+  createdAt     DateTime     @default(now())
+  archivedAt    DateTime?
+
+  institution   Institution       @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  subject       Subject?          @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  file          FileObject?       @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  chapters      Chapter[]
+  bookmarks     StudentBookmark[]
+  notes         StudentNote[]
+  progress      ReadingProgress[]
+}
+
+model Chapter {
+  id         String   @id @default(cuid()) @db.VarChar(30)
+  textbookId String   @db.VarChar(30)
+  number     Int
+  title      String   @db.VarChar(255)
+  startPage  Int?
+  endPage    Int?
+  textbook   Textbook @relation(fields: [textbookId], references: [id], onDelete: Cascade)
+  materials  LearningMaterial[]
+  assignments MaterialAssignment[]
+
+  @@unique([textbookId, number])
+}
+
+model LearningMaterial {
+  id            String        @id @default(cuid()) @db.VarChar(30)
+  institutionId String        @db.VarChar(30)
+  subjectId     String        @db.VarChar(30)
+  chapterId     String?       @db.VarChar(30)
+  title         String        @db.VarChar(255)
+  description   String?       @db.Text
+  type          MaterialType
+  fileId        String?       @db.VarChar(30)
+  url           String?       @db.VarChar(1024)
+  status        PublishStatus @default(DRAFT)
+  createdById   String        @db.VarChar(30)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  institution   Institution          @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  subject       Subject              @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  chapter       Chapter?             @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  file          FileObject?          @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  assignments   MaterialAssignment[]
+  notes         StudentNote[]
+}
+
+model MaterialAssignment {
+  id            String            @id @default(cuid()) @db.VarChar(30)
+  divisionId    String            @db.VarChar(30)
+  materialId    String?           @db.VarChar(30)
+  chapterId     String?           @db.VarChar(30)
+  assignedById  String            @db.VarChar(30)
+  availableFrom DateTime          @default(now())
+  createdAt     DateTime          @default(now())
+
+  division      Division          @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  material      LearningMaterial? @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  chapter       Chapter?          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([divisionId])
+}
+
+model StudentBookmark {
+  id         String         @id @default(cuid()) @db.VarChar(30)
+  studentId  String         @db.VarChar(30)
+  textbookId String         @db.VarChar(30)
+  page       Int
+  label      String?        @db.VarChar(120)
+  createdAt  DateTime       @default(now())
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  textbook   Textbook       @relation(fields: [textbookId], references: [id], onDelete: Cascade)
+}
+
+model StudentNote {
+  id         String            @id @default(cuid()) @db.VarChar(30)
+  studentId  String            @db.VarChar(30)
+  textbookId String?           @db.VarChar(30)
+  materialId String?           @db.VarChar(30)
+  page       Int?
+  body       String            @db.Text
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  student    StudentProfile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  textbook   Textbook?         @relation(fields: [textbookId], references: [id], onDelete: Cascade)
+  material   LearningMaterial? @relation(fields: [materialId], references: [id], onDelete: Cascade)
+}
+
+model ReadingProgress {
+  studentId  String         @db.VarChar(30)
+  textbookId String         @db.VarChar(30)
+  lastPage   Int            @default(1)
+  percent    Decimal        @default(0) @db.Decimal(5, 2)
+  updatedAt  DateTime       @updatedAt
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  textbook   Textbook       @relation(fields: [textbookId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, textbookId])
+}
+
+// ───────────────────────────── Questions, quizzes, assessments ─────────────────────────────
+
+model Question {
+  id            String        @id @default(cuid()) @db.VarChar(30)
+  institutionId String        @db.VarChar(30)
+  subjectId     String?       @db.VarChar(30)
+  type          QuestionType
+  prompt        String        @db.Text
+  imageFileId   String?       @db.VarChar(30)
+  difficulty    Difficulty    @default(MEDIUM)
+  correctAnswer String?       @db.Text
+  explanation   String?       @db.Text
+  source        ContentSource @default(MANUAL)
+  createdById   String        @db.VarChar(30)
+  createdAt     DateTime      @default(now())
+
+  institution   Institution        @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  subject       Subject?           @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  imageFile     FileObject?        @relation(fields: [imageFileId], references: [id], onDelete: SetNull)
+  options       QuestionOption[]
+  quizzes       QuizQuestion[]
+  responses     QuizResponse[]
+  generatedFrom GeneratedQuestion[]
+}
+
+model QuestionOption {
+  id         String         @id @default(cuid()) @db.VarChar(30)
+  questionId String         @db.VarChar(30)
+  label      String         @db.VarChar(500)
+  isCorrect  Boolean        @default(false)
+  sequence   Int
+  question   Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  responses  QuizResponse[]
+}
+
+model Quiz {
+  id              String        @id @default(cuid()) @db.VarChar(30)
+  institutionId   String        @db.VarChar(30)
+  title           String        @db.VarChar(200)
+  subjectId       String        @db.VarChar(30)
+  divisionId      String?       @db.VarChar(30)
+  createdById     String        @db.VarChar(30)
+  timeLimitSec    Int?
+  randomize       Boolean       @default(false)
+  showLeaderboard Boolean       @default(false)
+  scheduledFor    DateTime?
+  status          PublishStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+
+  institution     Institution    @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  subject         Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  division        Division?      @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  questions       QuizQuestion[]
+  sessions        QuizSession[]
+}
+
+model QuizQuestion {
+  quizId     String   @db.VarChar(30)
+  questionId String   @db.VarChar(30)
+  sequence   Int
+  points     Decimal  @default(1) @db.Decimal(5, 2)
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@id([quizId, questionId])
+}
+
+model QuizSession {
+  id                 String            @id @default(cuid()) @db.VarChar(30)
+  quizId             String            @db.VarChar(30)
+  classroomSessionId String?           @db.VarChar(30)
+  status             QuizSessionStatus @default(SCHEDULED)
+  startedAt          DateTime?
+  endsAt             DateTime?
+  closedAt           DateTime?
+
+  quiz               Quiz              @relation(fields: [quizId], references: [id], onDelete: Restrict)
+  classroomSession   ClassroomSession? @relation(fields: [classroomSessionId], references: [id], onDelete: SetNull)
+  responses          QuizResponse[]
+}
+
+model QuizResponse {
+  id               String          @id @default(cuid()) @db.VarChar(30)
+  quizSessionId    String          @db.VarChar(30)
+  questionId       String          @db.VarChar(30)
+  studentId        String          @db.VarChar(30)
+  answer           String?         @db.Text
+  selectedOptionId String?         @db.VarChar(30)
+  isCorrect        Boolean?
+  score            Decimal?        @db.Decimal(5, 2)
+  submittedAt      DateTime        @default(now())
+
+  quizSession      QuizSession     @relation(fields: [quizSessionId], references: [id], onDelete: Restrict)
+  question         Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  student          StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  selectedOption   QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@unique([quizSessionId, questionId, studentId])
+  @@index([studentId])
+}
+
+model Assessment {
+  id            String         @id @default(cuid()) @db.VarChar(30)
+  institutionId String         @db.VarChar(30)
+  title         String         @db.VarChar(200)
+  type          AssessmentType
+  subjectId     String         @db.VarChar(30)
+  divisionId    String         @db.VarChar(30)
+  maxMarks      Decimal        @db.Decimal(6, 2)
+  heldOn        DateTime       @db.Date
+  publishedAt   DateTime?
+  createdById   String         @db.VarChar(30)
+  createdAt     DateTime       @default(now())
+
+  institution   Institution        @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  subject       Subject            @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  division      Division           @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  results       AssessmentResult[]
+}
+
+model AssessmentResult {
+  id           String         @id @default(cuid()) @db.VarChar(30)
+  assessmentId String         @db.VarChar(30)
+  studentId    String         @db.VarChar(30)
+  marks        Decimal        @db.Decimal(6, 2)
+  grade        String?        @db.VarChar(8)
+  remarks      String?        @db.VarChar(500)
+  recordedById String         @db.VarChar(30)
+  recordedAt   DateTime       @default(now())
+  assessment   Assessment     @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([assessmentId, studentId])
+}
+
+// ───────────────────────────── Student Digital Twin ─────────────────────────────
+
+model StudentPortfolio {
+  id         String           @id @default(cuid()) @db.VarChar(30)
+  studentId  String           @unique @db.VarChar(30)
+  headline   String?          @db.VarChar(255)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  student    StudentProfile   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  entries    PortfolioEntry[]
+}
+
+/// Evidence-linked timeline item. sourceType/sourceId point to the verified record it came from.
+model PortfolioEntry {
+  id          String             @id @default(cuid()) @db.VarChar(30)
+  portfolioId String             @db.VarChar(30)
+  type        PortfolioEntryType
+  title       String             @db.VarChar(255)
+  summary     String?            @db.Text
+  sourceType  String             @db.VarChar(60)
+  sourceId    String             @db.VarChar(30)
+  verified    Boolean            @default(false)
+  occurredAt  DateTime
+  createdAt   DateTime           @default(now())
+  portfolio   StudentPortfolio   @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
+
+  @@unique([portfolioId, sourceType, sourceId])
+  @@index([portfolioId, occurredAt])
+}
+
+model CompetencyFramework {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  institutionId String      @db.VarChar(30)
+  departmentId  String?     @db.VarChar(30)
+  name          String      @db.VarChar(160)
+  description   String?     @db.Text
+  createdAt     DateTime    @default(now())
+  archivedAt    DateTime?
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  skills        Skill[]
+}
+
+model Skill {
+  id          String              @id @default(cuid()) @db.VarChar(30)
+  frameworkId String              @db.VarChar(30)
+  subjectId   String?             @db.VarChar(30)
+  name        String              @db.VarChar(120)
+  description String?             @db.Text
+  criteria    Json?
+  framework   CompetencyFramework @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+  subject     Subject?            @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  students    StudentSkill[]
+  assessments CompetencyAssessment[]
+
+  @@unique([frameworkId, name])
+}
+
+/// Current achieved level per student & skill (derived from approved CompetencyAssessments).
+model StudentSkill {
+  studentId      String         @db.VarChar(30)
+  skillId        String         @db.VarChar(30)
+  level          Int            @db.TinyInt
+  lastAssessedAt DateTime
+  student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  skill          Skill          @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@id([studentId, skillId])
+}
+
+model CompetencyAssessment {
+  id           String         @id @default(cuid()) @db.VarChar(30)
+  studentId    String         @db.VarChar(30)
+  skillId      String         @db.VarChar(30)
+  level        Int            @db.TinyInt
+  evidence     String?        @db.Text
+  status       ReviewStatus   @default(DRAFT)
+  aiSuggested  Boolean        @default(false)
+  assessedById String?        @db.VarChar(30)
+  assessedAt   DateTime       @default(now())
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  skill        Skill          @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@index([studentId, skillId])
+}
+
+model StudentProject {
+  id          String         @id @default(cuid()) @db.VarChar(30)
+  studentId   String         @db.VarChar(30)
+  subjectId   String?        @db.VarChar(30)
+  title       String         @db.VarChar(200)
+  description String?        @db.Text
+  links       Json?
+  status      ReviewStatus   @default(DRAFT)
+  verifiedById String?       @db.VarChar(30)
+  verifiedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  subject     Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  attachments ProjectAttachment[]
+  collaborators ProjectCollaborator[]
+}
+
+model ProjectAttachment {
+  projectId String         @db.VarChar(30)
+  fileId    String         @db.VarChar(30)
+  project   StudentProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  file      FileObject     @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@id([projectId, fileId])
+}
+
+model ProjectCollaborator {
+  projectId String         @db.VarChar(30)
+  studentId String         @db.VarChar(30)
+  project   StudentProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, studentId])
+}
+
+model Achievement {
+  id          String         @id @default(cuid()) @db.VarChar(30)
+  studentId   String         @db.VarChar(30)
+  title       String         @db.VarChar(200)
+  category    String         @db.VarChar(60)
+  description String?        @db.Text
+  awardedOn   DateTime?      @db.Date
+  fileId      String?        @db.VarChar(30)
+  status      ReviewStatus   @default(PENDING)
+  createdAt   DateTime       @default(now())
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  file        FileObject?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  verifications AchievementVerification[]
+}
+
+model AchievementVerification {
+  id            String       @id @default(cuid()) @db.VarChar(30)
+  achievementId String       @db.VarChar(30)
+  verifierId    String       @db.VarChar(30)
+  decision      ReviewStatus
+  note          String?      @db.VarChar(500)
+  decidedAt     DateTime     @default(now())
+  achievement   Achievement  @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+}
+
+model LearningMilestone {
+  id          String         @id @default(cuid()) @db.VarChar(30)
+  studentId   String         @db.VarChar(30)
+  title       String         @db.VarChar(200)
+  description String?        @db.Text
+  sourceType  String         @db.VarChar(60)
+  sourceId    String?        @db.VarChar(30)
+  reachedAt   DateTime
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+}
+
+/// AI recommendations are always labelled with source=AI and stored with the evidence they used.
+model LearningRecommendation {
+  id          String               @id @default(cuid()) @db.VarChar(30)
+  studentId   String               @db.VarChar(30)
+  subjectId   String?              @db.VarChar(30)
+  kind        String               @db.VarChar(40)
+  body        String               @db.Text
+  evidence    Json
+  source      RecommendationSource
+  status      PublishStatus        @default(DRAFT)
+  createdById String?              @db.VarChar(30)
+  createdAt   DateTime             @default(now())
+  publishedAt DateTime?
+  student     StudentProfile       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  subject     Subject?             @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+}
+
+// ───────────────────────────── AI Classroom Copilot ─────────────────────────────
+
+model CopilotSession {
+  id                 String           @id @default(cuid()) @db.VarChar(30)
+  classroomSessionId String           @db.VarChar(30)
+  teacherId          String           @db.VarChar(30)
+  status             CopilotStatus    @default(IDLE)
+  sttProvider        String?          @db.VarChar(40)
+  llmProvider        String?          @db.VarChar(40)
+  startedAt          DateTime         @default(now())
+  endedAt            DateTime?
+
+  classroomSession   ClassroomSession  @relation(fields: [classroomSessionId], references: [id], onDelete: Restrict)
+  teacher            TeacherProfile    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  consents           CaptureConsent[]
+  segments           TranscriptSegment[]
+  notes              LessonNote[]
+  concepts           KeyConcept[]
+  packages           RevisionPackage[]
+  questions          GeneratedQuestion[]
+}
+
+model CaptureConsent {
+  id               String         @id @default(cuid()) @db.VarChar(30)
+  copilotSessionId String         @db.VarChar(30)
+  grantedById      String         @db.VarChar(30)
+  scope            String         @db.VarChar(80)
+  policyVersion    String         @db.VarChar(20)
+  grantedAt        DateTime       @default(now())
+  revokedAt        DateTime?
+  copilotSession   CopilotSession @relation(fields: [copilotSessionId], references: [id], onDelete: Cascade)
+}
+
+model TranscriptSegment {
+  id               String           @id @default(cuid()) @db.VarChar(30)
+  copilotSessionId String           @db.VarChar(30)
+  sequence         Int
+  startMs          Int?
+  endMs            Int?
+  text             String           @db.Text
+  source           TranscriptSource
+  createdAt        DateTime         @default(now())
+  copilotSession   CopilotSession   @relation(fields: [copilotSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([copilotSessionId, sequence])
+}
+
+model LessonNote {
+  id               String         @id @default(cuid()) @db.VarChar(30)
+  copilotSessionId String         @db.VarChar(30)
+  title            String         @db.VarChar(255)
+  contentMd        String         @db.MediumText
+  version          Int            @default(1)
+  status           ReviewStatus   @default(DRAFT)
+  approvedById     String?        @db.VarChar(30)
+  approvedAt       DateTime?
+  createdAt        DateTime       @default(now())
+  copilotSession   CopilotSession @relation(fields: [copilotSessionId], references: [id], onDelete: Cascade)
+}
+
+model KeyConcept {
+  id               String         @id @default(cuid()) @db.VarChar(30)
+  copilotSessionId String         @db.VarChar(30)
+  term             String         @db.VarChar(200)
+  definition       String?        @db.Text
+  sourceSegments   Json?
+  uncertain        Boolean        @default(false)
+  copilotSession   CopilotSession @relation(fields: [copilotSessionId], references: [id], onDelete: Cascade)
+}
+
+model RevisionPackage {
+  id               String             @id @default(cuid()) @db.VarChar(30)
+  copilotSessionId String             @db.VarChar(30)
+  title            String             @db.VarChar(255)
+  status           ReviewStatus       @default(DRAFT)
+  approvedById     String?            @db.VarChar(30)
+  approvedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  copilotSession   CopilotSession     @relation(fields: [copilotSessionId], references: [id], onDelete: Cascade)
+  resources        RevisionResource[]
+  publications     CopilotPublication[]
+}
+
+model RevisionResource {
+  id        String          @id @default(cuid()) @db.VarChar(30)
+  packageId String          @db.VarChar(30)
+  kind      String          @db.VarChar(40)
+  content   Json
+  sequence  Int
+  package   RevisionPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+}
+
+model GeneratedQuestion {
+  id               String         @id @default(cuid()) @db.VarChar(30)
+  copilotSessionId String         @db.VarChar(30)
+  type             QuestionType
+  difficulty       Difficulty
+  prompt           String         @db.Text
+  options          Json?
+  answer           String?        @db.Text
+  status           ReviewStatus   @default(DRAFT)
+  questionId       String?        @db.VarChar(30)
+  copilotSession   CopilotSession @relation(fields: [copilotSessionId], references: [id], onDelete: Cascade)
+  question         Question?      @relation(fields: [questionId], references: [id], onDelete: SetNull)
+}
+
+model CopilotPublication {
+  id            String          @id @default(cuid()) @db.VarChar(30)
+  packageId     String          @db.VarChar(30)
+  divisionId    String?         @db.VarChar(30)
+  studentId     String?         @db.VarChar(30)
+  publishedById String          @db.VarChar(30)
+  publishedAt   DateTime        @default(now())
+  package       RevisionPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  division      Division?       @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  student       StudentProfile? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+}
+
+// ───────────────────────────── AI platform ─────────────────────────────
+
+/// API keys are NOT stored here: apiKeyEnvVar names the server environment variable holding the key.
+model AIProvider {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  institutionId String      @db.VarChar(30)
+  key           String      @db.VarChar(40)
+  name          String      @db.VarChar(80)
+  baseUrl       String      @db.VarChar(255)
+  apiKeyEnvVar  String      @db.VarChar(80)
+  capabilities  Json
+  enabled       Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  models        AIModelConfiguration[]
+  usage         AIUsageRecord[]
+
+  @@unique([institutionId, key])
+}
+
+model AIModelConfiguration {
+  id         String     @id @default(cuid()) @db.VarChar(30)
+  providerId String     @db.VarChar(30)
+  purpose    String     @db.VarChar(40)
+  modelId    String     @db.VarChar(120)
+  params     Json?
+  isDefault  Boolean    @default(false)
+  provider   AIProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, purpose, modelId])
+}
+
+model AIConversation {
+  id          String      @id @default(cuid()) @db.VarChar(30)
+  userId      String      @db.VarChar(30)
+  title       String      @db.VarChar(200)
+  contextType String      @db.VarChar(40)
+  contextId   String?     @db.VarChar(30)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    AIMessage[]
+}
+
+model AIMessage {
+  id             String         @id @default(cuid()) @db.VarChar(30)
+  conversationId String         @db.VarChar(30)
+  role           AIMessageRole
+  content        String         @db.MediumText
+  tokensIn       Int?
+  tokensOut      Int?
+  createdAt      DateTime       @default(now())
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model AIUsageRecord {
+  id               String      @id @default(cuid()) @db.VarChar(30)
+  institutionId    String      @db.VarChar(30)
+  userId           String?     @db.VarChar(30)
+  providerId       String?     @db.VarChar(30)
+  model            String      @db.VarChar(120)
+  purpose          String      @db.VarChar(40)
+  promptTokens     Int?
+  completionTokens Int?
+  latencyMs        Int?
+  createdAt        DateTime    @default(now())
+  institution      Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  user             User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  provider         AIProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, createdAt])
+}
+
+// ───────────────────────────── Notifications, policies, audit ─────────────────────────────
+
+model Notification {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  institutionId String      @db.VarChar(30)
+  userId        String      @db.VarChar(30)
+  type          String      @db.VarChar(40)
+  title         String      @db.VarChar(200)
+  body          String?     @db.VarChar(1000)
+  link          String?     @db.VarChar(255)
+  readAt        DateTime?
+  createdAt     DateTime    @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model BrowserPolicy {
+  id            String       @id @default(cuid()) @db.VarChar(30)
+  institutionId String       @db.VarChar(30)
+  divisionId    String?      @db.VarChar(30)
+  subjectId     String?      @db.VarChar(30)
+  name          String       @db.VarChar(120)
+  defaultAllow  Boolean      @default(false)
+  activeFrom    DateTime?
+  activeUntil   DateTime?
+  createdById   String       @db.VarChar(30)
+  createdAt     DateTime     @default(now())
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  division      Division?    @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  subject       Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  urls          AllowedURL[]
+}
+
+model AllowedURL {
+  id        String        @id @default(cuid()) @db.VarChar(30)
+  policyId  String        @db.VarChar(30)
+  pattern   String        @db.VarChar(512)
+  kind      UrlRuleKind   @default(DOMAIN)
+  allow     Boolean       @default(true)
+  expiresAt DateTime?
+  policy    BrowserPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+}
+
+model DevicePolicy {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  institutionId String      @db.VarChar(30)
+  divisionId    String?     @db.VarChar(30)
+  name          String      @db.VarChar(120)
+  settings      Json
+  createdAt     DateTime    @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+  division      Division?   @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id            String      @id @default(cuid()) @db.VarChar(30)
+  institutionId String      @db.VarChar(30)
+  actorId       String?     @db.VarChar(30)
+  action        String      @db.VarChar(80)
+  entityType    String      @db.VarChar(60)
+  entityId      String?     @db.VarChar(30)
+  metadata      Json?
+  ip            String?     @db.VarChar(64)
+  createdAt     DateTime    @default(now())
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, createdAt])
+  @@index([entityType, entityId])
+}
