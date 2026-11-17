@@ -1794,3 +1794,33 @@ body .top-progress i::after {
 }
 @media (prefers-reduced-motion: reduce) { body .top-progress[data-state="run"] i { animation: none; } }
 .ai-file { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; background: #FFE6B8; color: #7a4b00; text-transform: uppercase; }
+
+/* ---------- Scale, zoom and narrow-container fixes ---------- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+img, svg, video, canvas { max-width: 100%; }
+/* Tables keep a readable width and scroll inside their card instead of wrapping words letter by letter. */
+.cd-tablewrap { max-width: 100%; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.cd-table { min-width: 560px; }
+.cd-table td, .cd-table th { white-space: nowrap; }
+.cd-table td:first-child:empty, .cd-table th:first-child:empty { width: 0; padding-inline: 6px; }
+.cd-table td .inline-flex { flex-wrap: nowrap; }
+/* Copilot history: never a sideways scrollbar, long titles end in an ellipsis. */
+.cc-history-list { overflow-x: hidden; }
+.cc-history .ds-side-link { min-width: 0; overflow: hidden; }
+.cc-history .ds-side-link > * { min-width: 0; }
+.cc-history .ds-label { flex: 1 1 auto; display: block; min-width: 0; }
+.cc-grid { grid-template-columns: minmax(0, clamp(180px, 28%, 260px)) minmax(0, 1fr); }
+@media (max-width: 900px) {
+  .cc-grid { grid-template-columns: minmax(0, 1fr); }
+  .cc-history-list { overflow-x: auto; }
+}
+.cp-row-main { min-width: 0; }
+.cp-row-main .ds-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.ai-card, .ai-people, .ai-stats, .ai-md { max-width: 100%; min-width: 0; }
+.ai-md { overflow-wrap: anywhere; }
+@media (max-width: 420px) { .ai-donut-body { flex-direction: column; align-items: flex-start; } }
+.dk-table-wrap { max-width: 100%; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.dk-table { min-width: 560px; }
+.dk-table td, .dk-table th { white-space: nowrap; }
+.dk-table td:first-child:empty, .dk-table th:first-child:empty { width: 0; padding-inline: 4px; }
+.dk-table td .inline-flex { flex-wrap: nowrap; }
