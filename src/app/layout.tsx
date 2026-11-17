@@ -1,8 +1,10 @@
 import "./globals.css";
 import "./dashboard.css";
+import "./dark.css";
 import type { Metadata, Viewport } from "next";
 import { Montserrat, Poppins } from "next/font/google";
 import { ToastContainer } from "@/components/ui/Toast";
+import { CookieConsent } from "@/components/ui/CookieConsent";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -21,7 +23,7 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "EduCore",
   description: "Next-generation smart classroom operating system",
-  other: { "color-scheme": "light" },
+  other: { "color-scheme": "light dark" },
 };
 
 export const viewport: Viewport = {
@@ -31,14 +33,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// Runs before first paint so the saved text size never flashes. (The app is light-only; a stale dark flag is cleared.)
+// Runs before first paint so the saved text size and theme never flash. No saved choice means the system setting.
 const THEME_SCRIPT = `
 (function () {
   try {
-    var sz = localStorage.getItem('c35_font_size');
+    var ok = /(?:^|; )c35_consent=[^;]*preferences%22%3Atrue/.test(document.cookie);
+    var sz = ok ? localStorage.getItem('c35_font_size') : null;
     if (sz) document.documentElement.dataset.fontSize = sz;
-    document.documentElement.classList.remove('dark');
-    localStorage.removeItem('c35_theme');
+    var th = ok ? localStorage.getItem('c35_theme') : null;
+    var dark = th ? th === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   } catch (_) {}
 })();
 `;
@@ -56,6 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
         <ToastContainer />
+        <CookieConsent />
       </body>
     </html>
   );

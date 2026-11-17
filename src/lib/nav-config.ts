@@ -53,6 +53,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { title: "Smart ID Cards", href: "/admin/smart-id", icon: "qr", module: "smartid.manage" },
       { title: "Devices", href: "/admin/devices", icon: "monitor", module: "devices.manage" },
       { title: "Audit & Logins", href: "/admin/audit", icon: "shieldCheck", module: "audit.view" },
+      { title: "Copilot usage", href: "/admin/ai-usage", icon: "sparkles", module: "audit.view" },
     ],
   },
 ];
@@ -64,6 +65,12 @@ const TEACHER_GROUPS: NavGroup[] = [
     items: [
       { title: "Overview", href: "/teacher", icon: "dashboard" },
       { title: "My Timetable", href: "/teacher/timetable", icon: "calendar" },
+      { title: "Attendance", href: "/teacher/attendance", icon: "checkSquare", module: "classroom.teach" },
+      { title: "Lesson log", href: "/teacher/lessons", icon: "read", module: "classroom.teach" },
+      { title: "Assignments", href: "/teacher/assignments", icon: "checkSquare", module: "assignments.manage" },
+      { title: "Quizzes", href: "/teacher/quizzes", icon: "read", module: "quiz.manage" },
+      { title: "Gradebook", href: "/teacher/gradebook", icon: "graduation", module: "assignments.manage" },
+      { title: "Portfolios", href: "/teacher/portfolio", icon: "graduation", module: "portfolio.view.any" },
       { title: "Library", href: "/teacher/library", icon: "read", module: "library.manage" },
     ],
   },
@@ -76,6 +83,12 @@ const STUDENT_GROUPS: NavGroup[] = [
     items: [
       { title: "Learning Home", href: "/student", icon: "home" },
       { title: "Today's Timetable", href: "/student/timetable", icon: "calendar" },
+      { title: "My Attendance", href: "/student/attendance", icon: "checkSquare" },
+      { title: "Calendar", href: "/student/calendar", icon: "calendar" },
+      { title: "Assignments", href: "/student/assignments", icon: "checkSquare" },
+      { title: "Quizzes", href: "/student/quizzes", icon: "read" },
+      { title: "Flashcards", href: "/student/flashcards", icon: "read" },
+      { title: "Portfolio", href: "/student/portfolio", icon: "graduation" },
       { title: "Library", href: "/student/library", icon: "read" },
     ],
   },

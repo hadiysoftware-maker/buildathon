@@ -1,0 +1,125 @@
+/* Dark theme. Set with <html data-theme="dark"> (chosen by the toggle or the system setting). It overrides the colour tokens, then the few hard-coded colours. */
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="dark"],
+html[data-theme="dark"] body.ds-theme,
+html[data-theme="dark"] .ds-scope {
+  --md-primary: #2DD4BF;
+  --md-on-primary: #052E2B;
+  --md-primary-hover: #5EEAD4;
+  --md-primary-container: #0E3B38;
+  --md-on-primary-container: #B7F3EA;
+  --md-link: #5EEAD4;
+  --logo-ink: #E6F2F0;
+  --logo-accent: #2DD4BF;
+  --md-bg: #0B1514;
+  --md-surface: #111E1D;
+  --md-surface-container: #162726;
+  --md-surface-container-low: #142322;
+  --md-surface-container-high: #1C302F;
+  --md-surface-2: #162726;
+  --md-surface-high: #1C302F;
+  --md-on-surface: #E6F2F0;
+  --md-on-surface-variant: #9DB8B5;
+  --md-on-surface-muted: #7F9B98;
+  --md-accent: #2DD4BF;
+  --md-outline: #2F6B66;
+  --md-outline-variant: #223837;
+  --md-error: #F28B90;
+  --md-on-error: #3B0A0D;
+  --md-error-container: #4A1D20;
+  --md-on-error-container: #FFD9DB;
+  --md-success: #5BD08F;
+  --md-success-container: #12352A;
+
+  --tile-red: #4A2A2B;
+  --tile-yellow: #4A3C22;
+  --tile-rose: #17413E;
+  --tile-green: #1B4030;
+  --tile-coral: #7A3F3A;
+
+  --mascot-ink: #E6F2F0;
+  --mascot-face: #111E1D;
+  --mascot-khaki: #2DD4BF;
+  --mascot-khaki-light: #0E3B38;
+  --mascot-khaki-mid: #2F6B66;
+  --mascot-muted: #9DB8B5;
+
+  --fest-theme-color: #2DD4BF;
+  --fest-theme-contrast: #052E2B;
+  --theme-primary: #2DD4BF;
+  --primary: #2DD4BF;
+  --primary-foreground: #052E2B;
+  --background: #0B1514;
+  --foreground: #E6F2F0;
+  --card: #111E1D;
+  --card-foreground: #E6F2F0;
+  --border: #223837;
+  --ring: rgba(45, 212, 191, 0.4);
+}
+
+html[data-theme="dark"] body { background-color: var(--md-bg); color: var(--md-on-surface); }
+html[data-theme="dark"] ::selection { background-color: #2DD4BF; color: #052E2B; }
+html[data-theme="dark"] .ds-stats > *:nth-child(4n + 1) { border-color: rgba(255, 170, 166, 0.18); }
+html[data-theme="dark"] .ds-stats > *:nth-child(4n + 2) { border-color: rgba(255, 218, 142, 0.18); }
+html[data-theme="dark"] .ds-stats > *:nth-child(4n + 3) { border-color: rgba(120, 220, 205, 0.18); }
+html[data-theme="dark"] .ds-stats > *:nth-child(4n + 4) { border-color: rgba(174, 234, 200, 0.18); }
+html[data-theme="dark"] .ds-stat::after, html[data-theme="dark"] .ai-stat::after { filter: opacity(0.35); }
+html[data-theme="dark"] .ai-stat { background: #4A2A2B; color: #E6F2F0; }
+html[data-theme="dark"] .ai-stat[data-tone="1"] { background: #4A3C22; }
+html[data-theme="dark"] .ai-stat[data-tone="2"] { background: #17413E; }
+html[data-theme="dark"] .ai-stat[data-tone="3"] { background: #1B4030; }
+html[data-theme="dark"] .ai-stat span { color: #BBD3D0; }
+
+/* Copilot cards */
+html[data-theme="dark"] .ag-tag { color: #5EEAD4; }
+html[data-theme="dark"] .ag-tag.warn { color: #F5C26B; }
+html[data-theme="dark"] .ag-go { background: #2DD4BF; color: #052E2B; }
+html[data-theme="dark"] .ag-ghost { color: #5EEAD4; }
+html[data-theme="dark"] .ag-plan li::before { background: #2F6B66; }
+html[data-theme="dark"] .ag-plan li i { background: #111E1D; border-color: #2DD4BF; color: #5EEAD4; }
+html[data-theme="dark"] .ag-plan[data-state="approved"] li i { background: #2DD4BF; color: #052E2B; }
+html[data-theme="dark"] .ag-plan footer input, html[data-theme="dark"] .ag-q input { border-bottom-color: #2DD4BF; color: inherit; }
+html[data-theme="dark"] .ag-act { background: #2A2417; border-color: #8A6A2A; }
+html[data-theme="dark"] .ag-act li b { color: #6EE7A0; }
+html[data-theme="dark"] .ag-done { background: #12352A; color: #B8F0D0; }
+html[data-theme="dark"] .ag-done[data-muted="1"] { background: #1C2B2A; color: #9DB8B5; }
+html[data-theme="dark"] .ag-file { border-color: #223837; }
+html[data-theme="dark"] .ag-dl { border-color: #2DD4BF; color: #5EEAD4; }
+html[data-theme="dark"] .ag-opts button { background: #162726; border-color: #2F4A48; }
+html[data-theme="dark"] .ag-opts button[data-on="1"] { background: #2DD4BF; border-color: #2DD4BF; color: #052E2B; }
+html[data-theme="dark"] .ag-ask { border-left-color: #2DD4BF; }
+html[data-theme="dark"] .ai-reply figure.ai-card { background: #162726; }
+html[data-theme="dark"] .ai-reply figure.ai-donut { border-top-color: #223837; }
+html[data-theme="dark"] .ai-reply .ai-summary { background: #2A2417; border-left-color: #D9A441; }
+html[data-theme="dark"] .ai-reply .ai-person { border-bottom-color: #223837; }
+html[data-theme="dark"] .ai-quiz-opts button[data-state="right"] { background: #12352A; border-color: #38A169; }
+html[data-theme="dark"] .ai-quiz-opts button[data-state="wrong"] { background: #4A1D20; border-color: #E07A8B; }
+html[data-theme="dark"] .ai-quiz-opts button[data-state="picked"] { background: #0E3B38; border-color: #2DD4BF; }
+html[data-theme="dark"] .ai-quiz-why[data-ok="1"] { color: #8FE3B1; }
+html[data-theme="dark"] .ai-quiz-why[data-ok="0"] { color: #F2A0AB; }
+
+/* Nova hero and student grid */
+html[data-theme="dark"] .nh-actions button { background: #162726; border-left-color: #2DD4BF; }
+html[data-theme="dark"] .nh-actions button:hover:not(:disabled) { background: #1C302F; }
+html[data-theme="dark"] .nh-cap { color: #5EEAD4; }
+html[data-theme="dark"] .nh-agents li button { border-color: #2F4A48; }
+html[data-theme="dark"] .nh-agents li button:hover:not(:disabled) { border-color: #2DD4BF; }
+html[data-theme="dark"] .sg-bar input { background: #111E1D; border-color: #2F4A48; }
+html[data-theme="dark"] .sg-chips button { border-color: #2F4A48; }
+html[data-theme="dark"] .sg-chips button[data-on="1"] { background: #2DD4BF; border-color: #2DD4BF; color: #052E2B; }
+html[data-theme="dark"] .sg-card { border-color: #223837; }
+html[data-theme="dark"] .sg-card:hover { border-color: #2DD4BF; }
+html[data-theme="dark"] .sg-n { background: #162726; color: #5EEAD4; }
+html[data-theme="dark"] .sg-av { filter: brightness(0.75) saturate(0.9); }
+
+/* Chrome that sits on white in light mode */
+html[data-theme="dark"] input, html[data-theme="dark"] textarea, html[data-theme="dark"] select { color-scheme: dark; }
+html[data-theme="dark"] img { opacity: 0.94; }
+html[data-theme="dark"] .ds-avatar img, html[data-theme="dark"] .ag-pic, html[data-theme="dark"] .ag-imgs img { opacity: 1; }
+
+/* Text that was fixed to dark ink on the pastel tiles, and the inline-coloured logo */
+html[data-theme="dark"] .ds-stat, html[data-theme="dark"] .ds-stat strong, html[data-theme="dark"] .ds-stat span, html[data-theme="dark"] .ds-stat-val { color: #EAF5F3; }
+html[data-theme="dark"] .ds-stat small, html[data-theme="dark"] .ds-stat-sub, html[data-theme="dark"] .ds-stat-label { color: rgba(234, 245, 243, 0.72); }
+html[data-theme="dark"] .ds-stat-pill { background: rgba(255, 255, 255, 0.1); color: #EAF5F3; }
+html[data-theme="dark"] a .font-heading.font-bold.text-base { color: #E6F2F0 !important; }
+html[data-theme="dark"] a .font-heading.font-bold.text-base > span { color: #2DD4BF !important; }

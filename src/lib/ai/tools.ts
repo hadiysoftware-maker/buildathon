@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import type { CurrentSession } from "@/lib/auth/session";
 import { getDaySchedule } from "@/features/schedule/today";
 import type { Block } from "./blocks";
+import { LEARNING_LABELS, LEARNING_TOOLS } from "./tools-learning";
+import { DOC_LABELS, DOC_TOOLS } from "./tools-docs";
+import { WEB_LABELS, WEB_TOOLS } from "./tools-web";
 
 /**
  * Read-only tools the Copilot may call. Every tool is scoped by the caller's role and id on the server: the model
@@ -37,12 +40,18 @@ const PAGES: Record<string, { label: string; href: string; hint: string; k: stri
     { label: "Today", href: "/teacher", hint: "Today's classes", k: "today home dashboard classes" },
     { label: "Timetable", href: "/teacher/timetable", hint: "Your week", k: "timetable schedule week" },
     { label: "Library", href: "/teacher/library", hint: "Upload and publish study material", k: "library materials upload notes" },
+    { label: "Assignments", href: "/teacher/assignments", hint: "Set work and grade submissions", k: "assignments homework grade submissions" },
+    { label: "Quizzes", href: "/teacher/quizzes", hint: "Build and review quizzes", k: "quizzes tests questions" },
+    { label: "Portfolios", href: "/teacher/portfolio", hint: "Student portfolios", k: "portfolio students achievements" },
     { label: "Copilot", href: "/teacher/copilot", hint: "Full-page chat", k: "copilot chat ai nova" },
   ],
   STUDENT: [
     { label: "Today", href: "/student", hint: "Your day", k: "today home dashboard" },
     { label: "Timetable", href: "/student/timetable", hint: "Your week", k: "timetable schedule week" },
     { label: "Library", href: "/student/library", hint: "Study material", k: "library materials notes" },
+    { label: "Assignments", href: "/student/assignments", hint: "Homework and grades", k: "assignments homework due submit" },
+    { label: "Quizzes", href: "/student/quizzes", hint: "Take quizzes", k: "quizzes tests practice" },
+    { label: "Portfolio", href: "/student/portfolio", hint: "Your achievements", k: "portfolio achievements progress" },
     { label: "Copilot", href: "/student/copilot", hint: "Full-page chat", k: "copilot chat ai nova" },
   ],
 };
@@ -51,6 +60,9 @@ PAGES.SUPER_ADMIN = PAGES.ADMIN;
 const isAdmin = (s: CurrentSession) => ADMINS.includes(s.role);
 
 const TOOLS: ToolDef[] = [
+  ...LEARNING_TOOLS,
+  ...DOC_TOOLS,
+  ...WEB_TOOLS,
   {
     name: "get_today_schedule",
     description: "Today's timetable for the signed-in student or teacher, with current and next period. Shows a timeline.",
@@ -297,9 +309,14 @@ const TOOLS: ToolDef[] = [
       const sp = await prisma.studentProfile.findUnique({ where: { userId: s.userId }, select: { id: true } });
       if (!sp) return { data: { error: "No student profile." } };
       const since = new Date(Date.now() - 30 * 86_400_000);
-      const g = await prisma.attendance.groupBy({ by: ["status"], where: { studentId: sp.id, date: { gte: since } }, _count: { _all: true } });
-      const slices = g.map((x) => ({ label: x.status.replace("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()), value: x._count._all }));
-      return { data: { last30Days: slices }, blocks: slices.length ? [{ type: "donut", title: "My attendance, last 30 days", slices }] : [{ type: "summary", title: "My attendance", points: ["No attendance has been recorded in the last 30 days."] }] };
+      const [g, recent] = await Promise.all([
+        prisma.attendance.groupBy({ by: ["status"], where: { studentId: sp.id, date: { gte: since } }, _count: { _all: true } }),
+        prisma.attendance.findMany({ where: { studentId: sp.id, date: { gte: since } }, orderBy: { date: "desc" }, take: 40, select: { date: true, status: true } }),
+      ]);
+      const nice = (x: string) => x.replace("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase());
+      const slices = g.map((x) => ({ label: nice(x.status), value: x._count._all }));
+      const days = recent.map((r) => ({ date: r.date.toISOString().slice(0, 10), status: nice(r.status) }));
+      return { data: { last30Days: slices, recordedDays: days, note: "Only periods a teacher actually marked are recorded. Days that are not listed were NOT marked: never call them present or absent and never invent counts." }, blocks: slices.length ? [{ type: "donut", title: "My attendance, last 30 days", slices }] : [{ type: "summary", title: "My attendance", points: ["No attendance has been recorded in the last 30 days."] }] };
     },
   },
   {
@@ -323,12 +340,99 @@ const TOOLS: ToolDef[] = [
       return { data: { shown: true }, blocks: [{ type: "summary", title: str(args.title, 80) || "Summary", points, next: str(args.next, 160) || undefined }] };
     },
   },
+  {
+    name: "make_quiz",
+    description: "Show an interactive multiple-choice quiz card. Use it whenever the user asks for a quiz, MCQs, a test or practice questions. Pass 3 to 10 questions, each with 2 to 5 options, the 0-based index of the correct option, and a one-line explanation. Do not also write the questions in text.",
+    parameters: { type: "object", properties: { title: { type: "string" }, questions: { type: "array", items: { type: "object", properties: { q: { type: "string" }, options: { type: "array", items: { type: "string" } }, answer: { type: "integer", description: "0-based index of the correct option" }, why: { type: "string" } }, required: ["q", "options", "answer"] } } }, required: ["title", "questions"], additionalProperties: false },
+    roles: ["STUDENT", "TEACHER", ...ADMINS],
+    async run(_s, args) {
+      const raw = Array.isArray(args.questions) ? args.questions : [];
+      const questions = raw.flatMap((x) => {
+        const o = x as Record<string, unknown>;
+        const options = Array.isArray(o.options) ? o.options.map((p) => str(p, 120)).filter(Boolean).slice(0, 5) : [];
+        const answer = Number(o.answer);
+        const q = str(o.q, 240);
+        return q && options.length >= 2 && Number.isInteger(answer) && answer >= 0 && answer < options.length ? [{ q, options, answer, why: str(o.why, 200) || undefined }] : [];
+      }).slice(0, 10);
+      if (!questions.length) return { data: { error: "No valid questions. Each needs q, 2 or more options and a valid answer index." } };
+      return { data: { shown: true, count: questions.length, note: "The quiz card is shown. Say one short line, do not repeat the questions." }, blocks: [{ type: "quiz", title: str(args.title, 80) || "Quiz", questions }] };
+    },
+  },
+  {
+    name: "make_pdf_report",
+    description: "Create a downloadable PDF report. Call this ONLY when the user explicitly asks for a report, PDF, document or export. Every chart, card, timeline and quiz shown in the same answer is added to the PDF automatically. First call the data tools you need, then pass the finished report as markdown: a title, short sections with headings, bullet points and tables, using only facts the tools returned.",
+    parameters: { type: "object", properties: { title: { type: "string" }, markdown: { type: "string", description: "The full report in markdown (headings, bullets, tables)." } }, required: ["title", "markdown"], additionalProperties: false },
+    roles: ["STUDENT", "TEACHER", ...ADMINS],
+    async run(_s, args) {
+      const markdown = str(args.markdown, 12_000);
+      if (markdown.length < 20) return { data: { error: "The report was empty. Write the full report in markdown." } };
+      return { data: { created: true, note: "The PDF card is shown. Tell the user it is ready in one short line." }, blocks: [{ type: "report", title: str(args.title, 90) || "Report", markdown }] };
+    },
+  },
 ];
+
+const LABELS: Record<string, { label: string; agent?: string }> = {
+  get_today_schedule: { label: "Checking today's timetable", agent: "Schedule agent" },
+  get_my_subjects: { label: "Looking up your subjects", agent: "Schedule agent" },
+  get_my_notifications: { label: "Reading your notifications", agent: "Inbox agent" },
+  list_my_students: { label: "Loading your students", agent: "People agent" },
+  school_stats: { label: "Counting students, teachers and cards", agent: "Data agent" },
+  students_by_division: { label: "Counting students per division", agent: "Data agent" },
+  find_people: { label: "Searching people", agent: "People agent" },
+  list_materials: { label: "Finding study material", agent: "Library agent" },
+  my_week_load: { label: "Adding up your week", agent: "Schedule agent" },
+  teacher_workload: { label: "Comparing teacher workload", agent: "Data agent" },
+  sign_in_activity: { label: "Reviewing sign-in activity", agent: "Security agent" },
+  card_status: { label: "Checking Smart ID cards", agent: "Data agent" },
+  my_attendance: { label: "Checking your attendance", agent: "Attendance agent" },
+  open_page: { label: "Finding the page", agent: "Guide agent" },
+  show_summary: { label: "Preparing the summary", agent: "Summary agent" },
+  make_quiz: { label: "Writing the quiz questions", agent: "Quiz agent" },
+  make_pdf_report: { label: "Drafting and formatting the report", agent: "Report writer" },
+};
+/** Friendly progress text for a tool call, shown live while Nova works. */
+export const toolLabel = (name: string) => LABELS[name] ?? LEARNING_LABELS[name] ?? DOC_LABELS[name] ?? WEB_LABELS[name] ?? { label: "Working on it" };
 
 export const toolsFor = (role: string) => TOOLS.filter((t) => t.roles.includes(role));
 
-export const toolSpecs = (role: string) =>
-  toolsFor(role).map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.parameters } }));
+const DOC_ONLY = new Set(["make_pptx", "make_docx", "make_xlsx", "find_images"]);
+const ACT_ONLY = new Set(["propose_action", "my_classes"]);
+const WANTS_DOCS = /(ppt|pptx|powerpoint|presentation|slides?|deck|word|docx|document|worksheet|handout|spreadsheet|excel|xlsx|sheet|gradebook|grade book|images?|photos?|pictures?)/i;
+const WANTS_ACTION = /(create|make|add|save|post|publish|announce|notify|tell the class|set (an? )?(assignment|homework)|assignment|homework|quiz|portfolio|mark .* read)/i;
+/** True when this message may need document or file tools (used to raise the token budget). */
+export const needsDocs = (message: string) => /^(approved|change the plan)/i.test(message) || WANTS_DOCS.test(message);
+
+/** Only the tools a message can plausibly need are sent to the model: it keeps each request small and within rate limits. */
+const WANTS_RESEARCH = /(research|sources?|cite|citations?|references?|latest|current|recent|news|analy[sz]e|compare|in[- ]depth|detailed|https?:\/\/|www\.|website|web ?site|link|online|internet|big question|essay|report on)/i;
+/** True when the message is the user's approval of a research card. Only then may web_research run. */
+export const isResearchApproval = (message: string) => /^approved research/i.test(message);
+
+export const toolSpecs = (role: string, message = "") => {
+  if (isResearchApproval(message)) {
+    return toolsFor(role).filter((t) => t.name === "web_research").map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.parameters } }));
+  }
+  const approved = /^approved/i.test(message);
+  if (approved) {
+    // The user already said yes: send only what the job needs (smaller request, and no way to ask for approval again).
+    const want = new Set<string>();
+    if (/pptx|powerpoint|presentation|slides?|deck/i.test(message)) want.add("make_pptx");
+    if (/docx|word|document|worksheet|handout|letter|circular|lesson plan/i.test(message)) want.add("make_docx");
+    if (/xlsx|excel|spreadsheet|sheet|gradebook|formula/i.test(message)) want.add("make_xlsx");
+    if (/image|photo|picture/i.test(message)) want.add("find_images");
+    if (/quiz|mcq|questions/i.test(message)) want.add("make_quiz");
+    if (!want.size) ["make_pptx", "make_docx", "make_xlsx", "propose_action", "my_classes"].forEach((n) => want.add(n));
+    return toolsFor(role)
+      .filter((t) => !["web_research", "propose_research"].includes(t.name))
+      .filter((t) => want.has(t.name) || (!DOC_ONLY.has(t.name) && !ACT_ONLY.has(t.name) && !["propose_plan", "ask_user"].includes(t.name) && /^(my_|assignments_|quiz_|student_)/.test(t.name)))
+      .map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.parameters } }));
+  }
+  const all = !message || /^change the plan/i.test(message);
+  return toolsFor(role)
+    .filter((t) => t.name !== "web_research" && (t.name !== "propose_research" || WANTS_RESEARCH.test(message)))
+    .filter((t) => all || !DOC_ONLY.has(t.name) || WANTS_DOCS.test(message))
+    .filter((t) => all || !ACT_ONLY.has(t.name) || WANTS_ACTION.test(message))
+    .map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.parameters } }));
+};
 
 /** Runs one tool call. Returns the compact text for the model plus the visuals for the browser. */
 export async function runTool(s: CurrentSession, name: string, rawArgs: string): Promise<{ content: string; blocks: Block[] }> {

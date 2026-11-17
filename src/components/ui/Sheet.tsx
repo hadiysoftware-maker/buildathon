@@ -114,16 +114,14 @@ export function useConfirm() {
         <>
           <button
             type="button"
-            className="h-9 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-medium cursor-pointer"
+            className="ds-btn outline sm"
             onClick={() => answer(false)}
           >
             Cancel
           </button>
           <button
             type="button"
-            className={`h-9 px-4 rounded-xl text-white text-xs font-semibold cursor-pointer ${
-              state?.danger ? "bg-[#9E2A2B] hover:bg-[#9E2A2B]" : "bg-[#000000] hover:bg-[#000000]"
-            }`}
+            className={state?.danger ? "ds-btn sm danger" : "ds-btn sm"}
             onClick={() => answer(true)}
           >
             {state?.confirmLabel ?? "Confirm"}

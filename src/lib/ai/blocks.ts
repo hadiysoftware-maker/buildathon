@@ -11,7 +11,20 @@ export type Block =
   | { type: "timeline"; date: string; rows: { time: string; title: string; sub?: string; state: string }[] }
   | { type: "materials"; items: { title: string; subject: string; kind: string; size: string; status: string; href?: string }[] }
   | { type: "links"; items: { label: string; href: string; hint?: string }[] }
-  | { type: "summary"; title: string; points: string[]; next?: string };
+  | { type: "summary"; title: string; points: string[]; next?: string }
+  | { type: "quiz"; title: string; questions: { q: string; options: string[]; answer: number; why?: string }[] }
+  | { type: "report"; title: string; markdown: string }
+  | { type: "plan"; id: string; title: string; steps: { label: string; agent?: string }[]; note?: string }
+  | { type: "file"; fileId: string; name: string; kind: "pptx" | "docx" | "xlsx"; size: number; detail?: string }
+  | { type: "deck"; title: string; theme: { primary: string; accent: string; dark: boolean }; slides: { layout: string; title: string; subtitle?: string; bullets?: string[]; left?: string[]; right?: string[]; quote?: string; author?: string; imageUrl?: string; animation?: string }[] }
+  | { type: "ask"; id: string; title: string; questions: { key: string; label: string; options?: string[]; placeholder?: string }[] }
+  | { type: "flashcards"; topic: string; cards: { front: string; back: string }[] }
+  | { type: "action"; token: string; title: string; summary: string[]; confirm: string }
+  | { type: "result"; title: string; items: { label: string; value: string }[]; links?: { label: string; href: string }[] }
+  | { type: "images"; items: { url: string; thumb: string; credit: string; pageUrl: string; alt: string }[] }
+  | { type: "research"; id: string; question: string; urls: string[]; sites: string }
+  | { type: "sources"; query: string; items: { n: number; title: string; url: string; site: string; text: string }[] }
+  | { type: "step"; label: string; done?: boolean; agent?: string }; // live progress only, never stored
 
 const FS = "\u001e"; // record separator: frames a block inside the text stream
 const ENV = "␞"; // marks a stored message that carries blocks
@@ -35,13 +48,17 @@ export function splitFrames(raw: string): { blocks: Block[]; text: string } {
   return { blocks, text: text.trimStart() };
 }
 
-export const packMessage = (text: string, blocks: Block[]) => (blocks.length ? ENV + JSON.stringify({ t: text, b: blocks }) : text);
+export interface AttachedFile { id: string; name: string; mime: string }
 
-export function unpackMessage(stored: string): { text: string; blocks: Block[] } {
+/** Stored form of a message. Files and the text pulled out of them ride along so follow-up questions can reuse them. */
+export const packMessage = (text: string, blocks: Block[], extra?: { files?: AttachedFile[]; x?: string }) =>
+  blocks.length || extra?.files?.length ? ENV + JSON.stringify({ t: text, b: blocks, ...(extra?.files?.length ? { f: extra.files, x: extra.x } : {}) }) : text;
+
+export function unpackMessage(stored: string): { text: string; blocks: Block[]; files?: AttachedFile[]; x?: string } {
   if (!stored.startsWith(ENV)) return { text: stored, blocks: [] };
   try {
-    const j = JSON.parse(stored.slice(1)) as { t: string; b: Block[] };
-    return { text: j.t, blocks: j.b ?? [] };
+    const j = JSON.parse(stored.slice(1)) as { t: string; b: Block[]; f?: AttachedFile[]; x?: string };
+    return { text: j.t, blocks: j.b ?? [], files: j.f, x: j.x };
   } catch {
     return { text: stored, blocks: [] };
   }

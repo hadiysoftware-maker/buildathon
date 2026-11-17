@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { percents, type Block } from "@/lib/ai/blocks";
+import { Quiz } from "./Quiz";
+import { ActionCard, AskCard, FlashDeck, DeckPreview, FileCard, ImageStrip, PlanCard, ResearchCard, SourcesCard, type AgentCtx } from "./Agentic";
 
 /** Renderers for Copilot visuals. Plain SVG and CSS: no chart library, light theme only. */
 const COLORS = ["#0F766E", "#F5B83D", "#14A394", "#E07A8B", "#6C8EAD", "#9AA9A6"];
@@ -170,7 +172,7 @@ function Summary({ title, points, next }: { title: string; points: string[]; nex
   );
 }
 
-export function BlockView({ block }: { block: Block }) {
+export function BlockView({ block, ctx = {} }: { block: Block; ctx?: AgentCtx }) {
   switch (block.type) {
     case "stats": return <Stats items={block.items} />;
     case "donut": return <Donut title={block.title} slices={block.slices} />;
@@ -180,7 +182,17 @@ export function BlockView({ block }: { block: Block }) {
     case "timeline": return <Timeline date={block.date} rows={block.rows} />;
     case "materials": return <Materials items={block.items} />;
     case "links": return <PageLinks items={block.items} />;
+    case "quiz": return <Quiz title={block.title} questions={block.questions} />;
     case "summary": return <Summary title={block.title} points={block.points} next={block.next} />;
+    case "plan": return <PlanCard block={block} ctx={ctx} />;
+    case "flashcards": return <FlashDeck block={block} />;
+    case "ask": return <AskCard block={block} ctx={ctx} />;
+    case "action": return <ActionCard block={block} ctx={ctx} />;
+    case "file": return <FileCard block={block} />;
+    case "deck": return <DeckPreview block={block} />;
+    case "research": return <ResearchCard block={block} ctx={ctx} />;
+    case "sources": return <SourcesCard block={block} />;
+    case "images": return <ImageStrip block={block} />;
     default: return null;
   }
 }

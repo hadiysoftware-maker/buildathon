@@ -6,6 +6,7 @@ import { Sheet, Segmented, Field } from "@/components/dashboard/Kit";
 import { toast } from "@/components/ui/Toast";
 import { uploadFile } from "@/lib/storage/upload-client";
 import { applyTextSize, getStoredFontSize, type FontSize } from "@/lib/theme";
+import { openConsent } from "@/lib/consent";
 import type { ShellUser } from "@/providers/permissions-provider";
 
 export function AccountDialog({
@@ -62,6 +63,9 @@ export function AccountDialog({
               { value: "large", label: "Large" },
             ]}
           />
+        </Field>
+        <Field label="Privacy" hint="Essential cookies keep you signed in. Preferences remember your theme and text size.">
+          <button type="button" className="ds-btn tonal sm" onClick={() => { onClose(); openConsent(); }}>Cookie settings</button>
         </Field>
       </div>
     </Sheet>

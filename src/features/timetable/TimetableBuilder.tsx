@@ -126,7 +126,7 @@ export function TimetableBuilder(p: {
           <p className="cd-muted">Nothing to show yet. Create classes, teachers and classrooms first.</p>
         ) : (
           <div className="dk-table-wrap">
-            <table className="dk-table" aria-label="Weekly timetable">
+            <table className="dk-table tt-grid" aria-label="Weekly timetable" data-no-rt="1" style={{ minWidth: 130 + p.workingDays.length * 150 }}>
               <thead>
                 <tr>
                   <th>Period</th>
@@ -138,7 +138,7 @@ export function TimetableBuilder(p: {
                   <tr key={per.id}>
                     <td><strong>{per.name}</strong><br /><small className="cd-muted">{per.startTime}–{per.endTime}</small></td>
                     {per.kind !== "CLASS" ? (
-                      <td colSpan={p.workingDays.length} style={{ textAlign: "center" }} className="cd-muted">{per.kind === "LUNCH" ? "Lunch" : "Break"}</td>
+                      <td colSpan={p.workingDays.length} style={{ textAlign: "left" }} className="cd-muted">{per.kind === "LUNCH" ? "Lunch" : "Break"}</td>
                     ) : (
                       p.workingDays.map((d) => {
                         const e = at(d, per.id);

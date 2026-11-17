@@ -31,11 +31,19 @@ const TEACHER: Command[] = [
   { id: "t-today", title: "Today's classes", section: "Actions", icon: "calendar", href: "/teacher", keywords: "schedule next period" },
   { id: "t-week", title: "Weekly timetable", section: "Actions", icon: "calendar", href: "/teacher/timetable", keywords: "week" },
   { id: "t-upload", title: "Upload study material", section: "Actions", icon: "read", href: "/teacher/library", perm: "library.manage", keywords: "pdf publish notes" },
+  { id: "t-assign", title: "Create an assignment", section: "Actions", icon: "checkSquare", href: "/teacher/assignments", perm: "assignments.manage", keywords: "homework grade submissions" },
+  { id: "t-lesson", title: "Log today's lesson", section: "Actions", icon: "read", href: "/teacher/lessons", perm: "classroom.teach", keywords: "taught topic homework" },
+  { id: "t-quiz", title: "Build a quiz", section: "Actions", icon: "read", href: "/teacher/quizzes", perm: "quiz.manage", keywords: "questions test mcq" },
 ];
 
 const STUDENT: Command[] = [
   { id: "s-today", title: "What is my next class?", section: "Actions", icon: "calendar", href: "/student", keywords: "schedule today" },
   { id: "s-material", title: "Open study material", section: "Actions", icon: "read", href: "/student/library", keywords: "notes pdf" },
+  { id: "s-assign", title: "My assignments", section: "Actions", icon: "checkSquare", href: "/student/assignments", keywords: "homework due submit" },
+  { id: "s-cal", title: "Calendar", section: "Actions", icon: "calendar", href: "/student/calendar", keywords: "due dates week" },
+  { id: "s-flash", title: "Flashcards", section: "Actions", icon: "read", href: "/student/flashcards", keywords: "revise review memorise" },
+  { id: "s-quiz", title: "My quizzes", section: "Actions", icon: "read", href: "/student/quizzes", keywords: "test practice" },
+  { id: "s-port", title: "My portfolio", section: "Actions", icon: "graduation", href: "/student/portfolio", keywords: "achievements progress" },
 ];
 
 const COMMON: Command[] = [

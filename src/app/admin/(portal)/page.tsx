@@ -1,3 +1,4 @@
+import { AtRiskCard } from "@/features/risk/AtRiskCard";
 import { prisma } from "@/lib/db";
 import { requireRolePage } from "@/lib/auth/guards";
 import { Hero } from "@/components/dashboard/OverviewKit";
@@ -32,6 +33,7 @@ export default async function Page() {
           { icon: "monitor", label: "Active devices", value: devices, href: "/admin/devices" },
         ]}
       />
+      <AtRiskCard institutionId={s.institutionId} hrefBase="/admin/people/students" />
     </PageWrap>
   );
 }

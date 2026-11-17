@@ -34,6 +34,10 @@ export const bucketName = () => process.env.R2_BUCKET ?? "";
 /** Upload "areas": what may be uploaded, how big, and under which key prefix. */
 export const AREAS = {
   avatar: { prefix: "avatars", maxBytes: 2 * 1024 * 1024, mime: ["image/jpeg", "image/png", "image/webp"] },
+  // Files attached in Copilot chat. Private to the uploader (see storage/access.ts); read by the AI only for that user's own chat.
+  chat: { prefix: "chat", maxBytes: 8 * 1024 * 1024, mime: ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/markdown", "text/csv"] },
+  // Assignment attachments (teachers) and submissions (students).
+  work: { prefix: "work", maxBytes: 15 * 1024 * 1024, mime: ["application/pdf", "image/jpeg", "image/png", "image/webp", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"] },
   material: {
     prefix: "materials",
     maxBytes: 25 * 1024 * 1024,
@@ -46,6 +50,12 @@ export const AREAS = {
   },
 } as const;
 export type Area = keyof typeof AREAS;
+
+/** Reads a stored object (server side only), for the copilot to review attachments. */
+export async function getObjectBytes(key: string): Promise<Uint8Array> {
+  const r = await s3().send(new GetObjectCommand({ Bucket: bucketName(), Key: key }));
+  return (await r.Body?.transformToByteArray()) ?? new Uint8Array();
+}
 
 /** Keys are generated server-side: tenant/area/random. The user's file name is metadata only, never part of the key. */
 export function newObjectKey(institutionId: string, area: Area): string {
@@ -77,4 +87,9 @@ export async function headObject(key: string): Promise<{ size: number; type?: st
 
 export async function deleteObject(key: string) {
   await s3().send(new DeleteObjectCommand({ Bucket: bucketName(), Key: key }));
+}
+
+/** Server-side upload for files the platform itself generates (Copilot documents). */
+export async function putObjectBytes(key: string, bytes: Uint8Array, mime: string) {
+  await s3().send(new PutObjectCommand({ Bucket: bucketName(), Key: key, Body: bytes, ContentType: mime }));
 }

@@ -29,18 +29,23 @@ export function StatGrid({ items }: { items: StatItem[] }) {
 }
 
 /** Honest placeholder for a module scheduled for a later phase: visible, clearly labelled, not interactive. */
-export function ComingSoon({ items }: { items: { icon: IconName; label: string; text: string; phase: number }[] }) {
+export function ComingSoon({ items }: { items: { icon: IconName; label: string; text: string; phase?: number; href?: string }[] }) {
   return (
     <div className="ds-grid ds-grid-3">
-      {items.map((i) => (
-        <div key={i.label} className="ds-mini ds-quick" aria-disabled="true" style={{ opacity: 0.65 }}>
-          <span className="ds-tile"><Icon name={i.icon} size={20} /></span>
-          <div className="ds-grow">
-            <h3>{i.label}</h3>
-            <p>{i.text} <em>Coming in phase {i.phase}.</em></p>
-          </div>
-        </div>
-      ))}
+      {items.map((i) => {
+        const body = (
+          <>
+            <span className="ds-tile"><Icon name={i.icon} size={20} /></span>
+            <div className="ds-grow">
+              <h3>{i.label}</h3>
+              <p>{i.text}{!i.href && i.phase ? <> <em>Coming in phase {i.phase}.</em></> : null}</p>
+            </div>
+          </>
+        );
+        return i.href
+          ? <Link key={i.label} href={i.href} className="ds-mini ds-quick">{body}</Link>
+          : <div key={i.label} className="ds-mini ds-quick" aria-disabled="true" style={{ opacity: 0.65 }}>{body}</div>;
+      })}
     </div>
   );
 }

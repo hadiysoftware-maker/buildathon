@@ -6,6 +6,7 @@ import { TopProgress } from "@/components/ui/TopProgress";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { NotificationBell } from "./NotificationBell";
+import { ThemeToggle } from "./ThemeToggle";
 import type { ShellUser } from "@/providers/permissions-provider";
 
 interface HeaderProps {
@@ -79,6 +80,7 @@ export function Header({ homeHref, user, onOpenCommandPalette, onOpenAccount, on
           </button>
         )}
 
+        <ThemeToggle />
         <NotificationBell />
 
         <div ref={userRef} className="ds-userbox">
@@ -105,8 +107,13 @@ export function Header({ homeHref, user, onOpenCommandPalette, onOpenAccount, on
           {userOpen && (
             <div className="ds-menu ds-user-menu" role="menu">
               <div className="ds-user-head">
-                <span className="ds-avatar" style={{ width: 42, height: 42, fontSize: 15 }}>
-                  {displayName.slice(0, 1).toUpperCase()}
+                <span className="ds-avatar" style={{ width: 42, height: 42, fontSize: 15, overflow: "hidden" }}>
+                  {user.photoId ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={`/api/files/${user.photoId}`} alt="" width={42} height={42} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    displayName.slice(0, 1).toUpperCase()
+                  )}
                 </span>
                 <div>
                   <strong>{displayName}</strong>

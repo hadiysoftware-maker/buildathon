@@ -13,3 +13,6 @@ next-env.d.ts
 .seed
 .claude
 .next-build
+
+.vercel
+.env*

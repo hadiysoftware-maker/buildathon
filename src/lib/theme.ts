@@ -2,6 +2,8 @@
 
 export type FontSize = "small" | "medium" | "large";
 
+import { canStorePreferences } from "./consent";
+
 const FONT_KEY = "c35_font_size";
 
 export function getStoredFontSize(): FontSize {
@@ -18,7 +20,7 @@ export function applyTextSize(size: FontSize) {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.fontSize = size;
   try {
-    localStorage.setItem(FONT_KEY, size);
+    if (canStorePreferences()) localStorage.setItem(FONT_KEY, size);
   } catch {
     /* storage unavailable */
   }

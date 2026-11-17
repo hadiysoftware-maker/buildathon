@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AssistantMessage } from "@/components/ai/AssistantMessage";
-import type { Block } from "@/lib/ai/blocks";
+import type { AttachedFile, Block } from "@/lib/ai/blocks";
+import { AttachButton, FILE_PROMPTS, MessageFiles, PendingChips, useAttachments } from "@/components/ai/Attachments";
 import { Icon } from "@/components/ui/Icon";
-import { Mascot } from "@/components/ui/Mascot";
+import { BulkBar } from "@/components/ai/BulkBar";
+import { NovaHero } from "@/components/ai/NovaHero";
 import { toast } from "@/components/ui/Toast";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
-interface Msg { id: string; role: "USER" | "ASSISTANT"; content: string; blocks?: Block[] }
+interface Msg { id: string; role: "USER" | "ASSISTANT"; content: string; blocks?: Block[]; files?: AttachedFile[] }
 interface Convo { id: string; title: string; updatedAt: string }
 
 const SUGGEST: Record<string, string[]> = {
@@ -29,9 +31,14 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkAsk, setBulkAsk] = useState(false);
+  const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const end = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
   const sending = useRef(false);
+  const att = useAttachments();
 
   const loadHistory = useCallback(async () => {
     const r = await fetch("/api/ai/conversations").catch(() => null);
@@ -82,22 +89,37 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
     void loadHistory();
   };
 
+  const removeMany = async () => {
+    const ids = [...picked];
+    const res = await fetch("/api/ai/conversations", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) });
+    if (!res.ok) { toast.error("Could not delete the chats."); return; }
+    const { deleted } = (await res.json()) as { deleted: number };
+    toast.success(`${deleted} chat${deleted === 1 ? "" : "s"} deleted`);
+    if (cid && picked.has(cid)) newChat();
+    setPicked(new Set()); setSelecting(false);
+    void loadHistory();
+  };
+
   const send = async (raw: string) => {
-    const message = raw.trim();
+    const message = raw.trim() || (att.ids.length ? "Please review the attached file(s)." : "");
     if (!message || sending.current) return;
+    if (att.uploading) { toast.error("Wait for the upload to finish."); return; }
+    const sentFiles = att.files;
+    const sentIds = att.ids;
     sending.current = true;
     const convoId = cid ?? newConvoId(); // created up front so a retry or double click can never make a second chat
     setCid(convoId);
     setText("");
+    att.clear();
     setBusy(true);
     const reply: Msg = { id: `a${Date.now()}`, role: "ASSISTANT", content: "" };
-    setMsgs((m) => [...m, { id: `u${Date.now()}`, role: "USER", content: message }, reply]);
+    setMsgs((m) => [...m, { id: `u${Date.now()}`, role: "USER", content: message, files: sentFiles }, reply]);
     abort.current = new AbortController();
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId: convoId, message }),
+        body: JSON.stringify({ conversationId: convoId, message, ...(sentIds.length ? { attachments: sentIds } : {}) }),
         signal: abort.current.signal,
       });
       if (!res.ok || !res.body) {
@@ -144,32 +166,31 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
         {view === "history" ? (
           <div className="cp-body">
             {convos.length === 0 && <p className="cd-muted" style={{ padding: 8 }}>No chats yet.</p>}
+            <BulkBar total={convos.length} selected={picked.size} selecting={selecting}
+              onToggleMode={() => { setSelecting((x) => !x); setPicked(new Set()); }}
+              onSelectAll={() => setPicked(picked.size === convos.length ? new Set() : new Set(convos.map((c) => c.id)))}
+              onDelete={() => setBulkAsk(true)} />
             {convos.map((c) => (
               <div key={c.id} className="cp-row" data-active={c.id === cid}>
-                <button type="button" onClick={() => openConvo(c.id)} className="cp-row-main">
+                {selecting && <input type="checkbox" aria-label={`Select chat ${c.title}`} checked={picked.has(c.id)} onChange={() => toggle(c.id)} />}
+                <button type="button" onClick={() => (selecting ? toggle(c.id) : openConvo(c.id))} className="cp-row-main">
                   <span className="ds-label">{c.title}</span>
                   <small className="cd-muted">{new Date(c.updatedAt).toLocaleDateString()}</small>
                 </button>
-                <button type="button" className="ds-icon-btn" onClick={() => setPendingDelete({ id: c.id, title: c.title })} aria-label={`Delete chat ${c.title}`}><Icon name="delete" size={16} /></button>
+                {!selecting && <button type="button" className="ds-icon-btn" onClick={() => setPendingDelete({ id: c.id, title: c.title })} aria-label={`Delete chat ${c.title}`}><Icon name="delete" size={16} /></button>}
               </div>
             ))}
           </div>
         ) : (
           <div className="cp-body" aria-live="polite">
             {msgs.length === 0 ? (
-              <div style={{ display: "grid", justifyItems: "center", gap: 10, padding: "12px 4px" }}>
-                <Mascot mood="happy" pose="wave" size={96} label="Nova, your study buddy" />
-                <strong>Hi, I am Nova. How can I help?</strong>
-                {chips.map((s) => (
-                  <button key={s} type="button" className="ds-btn tonal sm" disabled={busy} onClick={() => send(s)}>{s}</button>
-                ))}
-              </div>
+              <NovaHero size={96} fallback={chips} disabled={busy} onPick={(t) => void send(t)} />
             ) : (
-              msgs.map((m) => (
+              msgs.map((m, mi) => (
                 m.role === "USER" ? (
-                  <div key={m.id} style={{ display: "flex", justifyContent: "flex-end" }}><div className="cp-msg" data-role="USER">{m.content}</div></div>
+                  <div key={m.id} style={{ display: "flex", justifyContent: "flex-end" }}><div className="cp-msg" data-role="USER">{m.content}<MessageFiles files={m.files} /></div></div>
                 ) : (
-                  <AssistantMessage key={m.id} content={m.content} blocks={m.blocks} pending={busy} />
+                  <AssistantMessage key={m.id} content={m.content} blocks={m.blocks} pending={busy} active={mi === msgs.length - 1} onSend={(t) => void send(t)} />
                 )
               ))
             )}
@@ -177,13 +198,30 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
           </div>
         )}
 
+        {view === "chat" && (att.items.length > 0) && (
+          <div className="att-stack">
+            <PendingChips items={att.items} onRemove={att.remove} />
+            <div className="att-prompts">
+              {FILE_PROMPTS.map((p) => <button key={p} type="button" className="ds-btn tonal sm" disabled={busy || att.uploading} onClick={() => send(p)}>{p}</button>)}
+            </div>
+          </div>
+        )}
         {view === "chat" && (
           <form className="cp-form" onSubmit={(e) => { e.preventDefault(); void send(text); }}>
-            <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask anything…" maxLength={4000} aria-label="Message" />
-            <button type="submit" className="ds-btn sm" disabled={busy || !text.trim()} aria-label="Send"><Icon name="send" size={16} /></button>
+            <AttachButton onPick={att.add} disabled={busy || att.items.length >= 3} />
+            <input value={text} onChange={(e) => setText(e.target.value)} placeholder={att.items.length ? "Ask about your file…" : "Ask anything…"} maxLength={4000} aria-label="Message" />
+            <button type="submit" className="ds-btn sm" disabled={busy || att.uploading || (!text.trim() && !att.ids.length)} aria-label="Send"><Icon name="send" size={16} /></button>
           </form>
         )}
       </aside>
+      <ConfirmModal
+        isOpen={bulkAsk}
+        onClose={() => setBulkAsk(false)}
+        onConfirm={async () => { await removeMany(); setBulkAsk(false); }}
+        title={`Delete ${picked.size} chat${picked.size === 1 ? "" : "s"}?`}
+        description="The selected chats and all their messages will be permanently deleted. This cannot be undone."
+        confirmText="Delete chats"
+      />
       <ConfirmModal
         isOpen={!!pendingDelete}
         onClose={() => setPendingDelete(null)}

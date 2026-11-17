@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { AREAS, bucketName, deleteObject, headObject, storageConfigured, type Area } from "@/lib/storage/r2";
 
 const Body = z.object({
-  area: z.enum(["avatar", "material"]),
+  area: z.enum(["avatar", "material", "chat", "work"]),
   key: z.string().min(20).max(300),
   fileName: z.string().trim().min(1).max(255),
   mimeType: z.string().max(120),

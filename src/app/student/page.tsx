@@ -9,6 +9,8 @@ import { fmtDateTime, greetingNow } from "@/lib/format";
 
 export const metadata = { title: "Learning home · EduCore" };
 
+const inDays = (n: number) => new Date(Date.now() + n * 86_400_000);
+
 export default async function Page() {
   const s = await requireRolePage(["STUDENT"], "/kiosk/login");
   const [schedule, notes, profile] = await Promise.all([
@@ -20,6 +22,13 @@ export default async function Page() {
     }),
   ]);
   const en = profile?.enrollments[0];
+  const week = inDays(7);
+  const [dueSoon, openQuizzes] = en && profile
+    ? await Promise.all([
+        prisma.assignment.count({ where: { institutionId: s.institutionId, divisionId: en.divisionId, status: "PUBLISHED", dueAt: { gte: inDays(0), lte: week }, submissions: { none: { studentId: profile.id } } } }),
+        prisma.quiz.count({ where: { institutionId: s.institutionId, status: "PUBLISHED", OR: [{ divisionId: en.divisionId }, { divisionId: null }], sessions: { some: { status: "LIVE", responses: { none: { studentId: profile.id } } } } } }),
+      ])
+    : [0, 0];
   const classes = schedule.rows.filter((r) => r.kind === "CLASS" && r.status !== "cancelled");
   return (
     <PageWrap>
@@ -33,6 +42,8 @@ export default async function Page() {
           { icon: "calendar", label: "Classes today", value: classes.length },
           { icon: "play", label: "Current class", value: schedule.current?.subject ?? "—", sub: schedule.current ? `${schedule.current.startTime}–${schedule.current.endTime}` : undefined },
           { icon: "clock", label: "Next class", value: schedule.next?.subject ?? "—", sub: schedule.next ? `at ${schedule.next.startTime}` : undefined },
+          { icon: "clipboard", label: "Due this week", value: dueSoon, sub: "assignments to submit" },
+          { icon: "quiz", label: "Open quizzes", value: openQuizzes },
           { icon: "bell", label: "Unread notifications", value: notes.filter((n) => !n.readAt).length },
         ]}
       />
@@ -44,14 +55,14 @@ export default async function Page() {
           </ul>
         )}
       </SectionCard>
-      <SectionCard title="Coming next" icon="sparkles">
+      <SectionCard title="Explore" icon="sparkles">
         <ComingSoon items={[
-          { icon: "video", label: "Join live class", text: "Join from your device.", phase: 4 },
-          { icon: "checkSquare", label: "Attendance", text: "See your attendance record.", phase: 4 },
-          { icon: "clipboard", label: "Assignments", text: "Submit and track work.", phase: 5 },
-          { icon: "quiz", label: "Quizzes", text: "Take live and scheduled quizzes.", phase: 5 },
-          { icon: "read", label: "Library", text: "Browse study material.", phase: 5 },
-          { icon: "award", label: "Portfolio", text: "Your achievements and growth.", phase: 6 },
+          { icon: "checkSquare", label: "Attendance", text: "See your attendance record.", href: "/student/attendance" },
+          { icon: "clipboard", label: "Assignments", text: "Submit and track work.", href: "/student/assignments" },
+          { icon: "quiz", label: "Quizzes", text: "Take timed quizzes and see your score.", href: "/student/quizzes" },
+          { icon: "read", label: "Library", text: "Browse study material.", href: "/student/library" },
+          { icon: "sparkles", label: "AI Copilot", text: "Ask Nova, attach files, get quizzes and reports.", href: "/student/copilot" },
+          { icon: "award", label: "Portfolio", text: "Your achievements and growth.", href: "/student/portfolio" },
         ]} />
       </SectionCard>
     </PageWrap>

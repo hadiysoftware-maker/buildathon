@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     const c = await prisma.aIConversation.findFirst({ where: { id, userId: s.userId }, select: { id: true } });
     if (!c) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
     const messages = await prisma.aIMessage.findMany({ where: { conversationId: id, role: { in: ["USER", "ASSISTANT"] } }, orderBy: { createdAt: "asc" }, take: 200, select: { id: true, role: true, content: true } });
-    return NextResponse.json({ messages: messages.map((m) => { const u = unpackMessage(decryptChat(s.userId, m.content)); return { id: m.id, role: m.role, content: u.text, blocks: u.blocks }; }) });
+    return NextResponse.json({ messages: messages.map((m) => { const u = unpackMessage(decryptChat(s.userId, m.content)); return { id: m.id, role: m.role, content: u.text, blocks: u.blocks, files: u.files }; }) });
   });
 }
 

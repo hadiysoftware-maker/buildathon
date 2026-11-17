@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { Presence } from "./Presence";
@@ -33,6 +34,7 @@ export function M3Select({
   const listId = `${id ?? autoId}-list`;
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null);
   const [dropUp, setDropUp] = useState(false);
@@ -62,7 +64,8 @@ export function M3Select({
     if (!open) return;
     setActive(Math.max(0, options.findIndex((o) => o.value === value && !o.disabled)));
     const onDown = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!wrapRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -127,8 +130,11 @@ export function M3Select({
         </span>
       </button>
 
+      {/* Rendered in document.body: inside a sheet or dialog (transformed ancestors) a fixed menu would be offset. */}
+      {typeof document !== "undefined" && createPortal(
       <Presence show={open && !!coords} variant="menu">
         <div
+          ref={menuRef}
           id={listId}
           role="listbox"
           className="select-menu"
@@ -166,7 +172,8 @@ export function M3Select({
             })}
           </ul>
         </div>
-      </Presence>
+      </Presence>,
+      document.body)}
     </div>
   );
 }

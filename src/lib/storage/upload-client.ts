@@ -1,9 +1,12 @@
 "use client";
 
-export type UploadArea = "avatar" | "material";
+import { optimizeForUpload } from "@/lib/storage/optimize";
+
+export type UploadArea = "avatar" | "material" | "chat" | "work";
 
 /** Browser → R2 direct upload: presign, PUT with progress, then confirm. Returns the new file id. */
-export async function uploadFile(area: UploadArea, file: File, onProgress?: (pct: number) => void): Promise<string> {
+export async function uploadFile(area: UploadArea, original: File, onProgress?: (pct: number) => void): Promise<string> {
+  const file = await optimizeForUpload(area, original);
   const mimeType = file.type || "application/octet-stream";
   const pre = await fetch("/api/files/presign", {
     method: "POST",

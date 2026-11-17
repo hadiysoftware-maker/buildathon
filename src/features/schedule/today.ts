@@ -27,6 +27,16 @@ export interface DaySchedule {
 }
 
 /** Today's date in the institution's timezone as a UTC-midnight Date (matches the @db.Date override column). */
+const tzCache = new Map<string, { tz: string; at: number }>();
+/** The school's time zone almost never changes, so it is remembered for 10 minutes instead of being read on every page. */
+export async function institutionTimezone(id: string): Promise<string> {
+  const hit = tzCache.get(id);
+  if (hit && Date.now() - hit.at < 600_000) return hit.tz;
+  const r = await prisma.institution.findUniqueOrThrow({ where: { id }, select: { timezone: true } });
+  tzCache.set(id, { tz: r.timezone, at: Date.now() });
+  return r.timezone;
+}
+
 function zonedDate(timeZone: string, now: Date) {
   const ymd = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
   return { date: new Date(`${ymd}T00:00:00Z`), label: new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "long", day: "numeric", month: "long" }).format(now) };
@@ -37,14 +47,19 @@ function zonedDate(timeZone: string, now: Date) {
  * `who` selects whose timetable: a student (by their active division) or a teacher.
  */
 export async function getDaySchedule(input: { institutionId: string; userId: string; who: "student" | "teacher" }): Promise<DaySchedule> {
-  const inst = await prisma.institution.findUniqueOrThrow({ where: { id: input.institutionId }, select: { timezone: true } });
+  const inst = { timezone: await institutionTimezone(input.institutionId) };
   const now = new Date();
   const { dayOfWeek, minutes } = nowInZone(inst.timezone, now);
   const { date, label } = zonedDate(inst.timezone, now);
 
-  const [year, periods] = await Promise.all([
+  // The year, the periods and "who is asking" are independent, so they are fetched together (one round trip instead of three).
+  const [year, periods, enr, teacher] = await Promise.all([
     prisma.academicYear.findFirst({ where: { institutionId: input.institutionId, status: "ACTIVE" }, select: { id: true } }),
     prisma.period.findMany({ where: { institutionId: input.institutionId, archivedAt: null }, orderBy: { sequence: "asc" } }),
+    input.who === "student"
+      ? prisma.enrollment.findFirst({ where: { status: "ACTIVE", academicYear: { status: "ACTIVE" }, student: { userId: input.userId } }, select: { divisionId: true } })
+      : Promise.resolve(null),
+    input.who === "teacher" ? prisma.teacherProfile.findUnique({ where: { userId: input.userId }, select: { id: true } }) : Promise.resolve(null),
   ]);
   const empty: DaySchedule = { dayOfWeek, dateLabel: label, timezone: inst.timezone, rows: [], current: null, next: null, hasYear: !!year };
   if (!year) return empty;
@@ -60,14 +75,10 @@ export async function getDaySchedule(input: { institutionId: string; userId: str
   let entries;
   let myTeacherId: string | null = null;
   if (input.who === "student") {
-    const enr = await prisma.enrollment.findFirst({
-      where: { status: "ACTIVE", academicYearId: year.id, student: { userId: input.userId } },
-      select: { divisionId: true },
-    });
     if (!enr) return empty;
     entries = await prisma.timetableEntry.findMany({ where: { academicYearId: year.id, divisionId: enr.divisionId, dayOfWeek, status: "ACTIVE" }, include });
   } else {
-    const t = await prisma.teacherProfile.findUnique({ where: { userId: input.userId }, select: { id: true } });
+    const t = teacher;
     if (!t) return empty;
     myTeacherId = t.id;
     entries = await prisma.timetableEntry.findMany({

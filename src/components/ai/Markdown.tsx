@@ -5,8 +5,12 @@ import { Fragment, type ReactNode } from "react";
  * headings, bold, italics, inline code, bullet and numbered lists, simple tables and http(s) links.
  */
 function inline(text: string, keyBase: string): ReactNode[] {
+  // Models often put <br> inside table cells; show it as a line break (never as raw HTML).
+  if (/<br\s*\/?>/i.test(text)) {
+    return text.split(/<br\s*\/?>/i).flatMap((part, i) => [...(i ? [<br key={`${keyBase}-br${i}`} />] : []), ...inline(part, `${keyBase}-${i}`)]);
+  }
   const out: ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|\[[^\]]+\]\(https?:\/\/[^\s)]+\))/g;
+  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|\[[^\]]+\]\((?:https?:\/\/|\/)[^\s)]+\))/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let n = 0;
@@ -17,8 +21,10 @@ function inline(text: string, keyBase: string): ReactNode[] {
     if (t.startsWith("**")) out.push(<strong key={key}>{t.slice(2, -2)}</strong>);
     else if (t.startsWith("`")) out.push(<code key={key}>{t.slice(1, -1)}</code>);
     else if (t.startsWith("[")) {
-      const [, label, href] = /^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/.exec(t) ?? [];
-      out.push(<a key={key} href={href} target="_blank" rel="noopener noreferrer">{label}</a>);
+      const [, label, href] = /^\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)$/.exec(t) ?? [];
+      if (/^https?:\/\//.test(href)) out.push(<a key={key} href={href} target="_blank" rel="noopener noreferrer">{label}</a>);
+      else if (/^\/(admin|teacher|student)(\/|$)/.test(href)) out.push(<a key={key} href={href}>{label}</a>); // a real page of this app
+      else out.push(label); // an invented path: show the words, not a dead link
     } else out.push(<em key={key}>{t.slice(1, -1)}</em>);
     last = m.index + t.length;
   }

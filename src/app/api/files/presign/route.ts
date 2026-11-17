@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/auth/rate-limit";
 import { AREAS, newObjectKey, presignUpload, storageConfigured, type Area } from "@/lib/storage/r2";
 
 const Body = z.object({
-  area: z.enum(["avatar", "material"]),
+  area: z.enum(["avatar", "material", "chat", "work"]),
   mimeType: z.string().max(120),
   sizeBytes: z.number().int().positive(),
 });
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     assertSameOrigin(req);
     const s = await requireSession();
     if (!storageConfigured()) return NextResponse.json({ error: "File storage is not configured yet." }, { status: 503 });
-    if (!(await rateLimit(`upload:${s.userId}`, 30, 60_000))) return NextResponse.json({ error: "Too many uploads. Try again shortly." }, { status: 429 });
+    if (!(await rateLimit(`upload:${s.userId}`, 30, 60_000, { failOpen: true }))) return NextResponse.json({ error: "Too many uploads. Try again shortly." }, { status: 429 });
 
     const b = Body.parse(await req.json());
     const area = b.area as Area;

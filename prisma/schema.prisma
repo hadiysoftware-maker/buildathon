@@ -1796,3 +1796,54 @@ model AuditLog {
   @@index([institutionId, createdAt])
   @@index([entityType, entityId])
 }
+
+/// One finished practice quiz (Copilot chat or the platform). Private to the user; teachers see it only for students they teach.
+model PracticeAttempt {
+  id            String   @id @default(cuid()) @db.VarChar(30)
+  institutionId String   @db.VarChar(30)
+  userId        String   @db.VarChar(30)
+  studentId     String?  @db.VarChar(30)
+  topic         String   @db.VarChar(200)
+  score         Int
+  total         Int
+  source        String   @db.VarChar(20)
+  answers       Json
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([institutionId, studentId])
+}
+
+/// What a teacher taught a division in a subject on a day. Feeds the Copilot so it knows what each class has covered.
+model LessonLog {
+  id            String   @id @default(cuid()) @db.VarChar(30)
+  institutionId String   @db.VarChar(30)
+  divisionId    String   @db.VarChar(30)
+  subjectId     String   @db.VarChar(30)
+  teacherId     String   @db.VarChar(30)
+  date          DateTime @db.Date
+  topic         String   @db.VarChar(200)
+  summary       String?  @db.VarChar(1000)
+  homework      String?  @db.VarChar(500)
+  createdAt     DateTime @default(now())
+
+  @@index([divisionId, date])
+  @@index([teacherId, date])
+  @@index([institutionId])
+}
+
+/// A student's revision card (Leitner boxes 1 to 5). Private to the student.
+model Flashcard {
+  id            String   @id @default(cuid()) @db.VarChar(30)
+  institutionId String   @db.VarChar(30)
+  userId        String   @db.VarChar(30)
+  topic         String   @db.VarChar(120)
+  front         String   @db.VarChar(400)
+  back          String   @db.VarChar(600)
+  box           Int      @default(1)
+  dueAt         DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([userId, dueAt])
+  @@index([institutionId])
+}

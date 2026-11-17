@@ -1,0 +1,35 @@
+/* Attendance module. Uses the app's --md-* tokens; scales from phones to wide screens. */
+.att { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.att-bar { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--md-on-surface); }
+.att-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.att-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--md-outline-variant); border-radius: 16px; background: var(--md-surface); min-width: 0; }
+.att-row[data-status="PRESENT"] { border-color: #86c9bf; background: #f1faf8; }
+.att-row[data-status="ABSENT"] { border-color: #e9a3ad; background: #fdf1f3; }
+.att-row[data-status="LATE"], .att-row[data-status="LEFT_EARLY"] { border-color: #f0d28a; background: #fff9e8; }
+.att-row[data-status="EXCUSED"] { background: var(--md-surface-container); }
+.att-who { display: flex; flex-direction: column; min-width: 0; flex: 1 1 160px; }
+.att-who strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-btns { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.att-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; min-width: 44px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface); font: 600 13px/1 inherit; cursor: pointer; justify-content: center; }
+.att-btn:hover:not(:disabled) { background: var(--md-surface-container); }
+.att-btn:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+.att-btn:disabled { opacity: .6; cursor: not-allowed; }
+.att-btn[aria-pressed="true"][data-v="PRESENT"] { background: #0f766e; border-color: #0f766e; color: #fff; }
+.att-btn[aria-pressed="true"][data-v="ABSENT"] { background: #b42335; border-color: #b42335; color: #fff; }
+.att-btn[aria-pressed="true"][data-v="LATE"] { background: #f5b83d; border-color: #f5b83d; color: #0b2a2c; }
+.att-btn[aria-pressed="true"][data-v="EXCUSED"] { background: #4b6b6d; border-color: #4b6b6d; color: #fff; }
+.att-btn-l { display: none; }
+@media (min-width: 720px) { .att-btn-l { display: inline; } .att-btn > span[aria-hidden] { display: none; } }
+.att-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; }
+.att-slot { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 18px; background: var(--md-surface); text-decoration: none; color: var(--md-on-surface); min-width: 0; }
+.att-slot:hover { background: var(--md-surface-container); }
+.att-slot[aria-current="page"] { border-color: var(--md-primary); box-shadow: 0 0 0 2px var(--md-primary-container); }
+.att-slot .cd-chip { align-self: flex-start; margin-top: 4px; }
+.att-slot[aria-disabled="true"], a[aria-disabled="true"] { pointer-events: none; opacity: .5; }
+@media (prefers-reduced-motion: reduce) { .att-btn { transition: none; } }
+.att-range { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--md-surface-container); border: 1px solid var(--md-outline-variant); width: fit-content; max-width: 100%; }
+.att-range button { padding: 6px 16px; border: 0; border-radius: 999px; background: transparent; color: var(--md-on-surface-variant); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.att-range button[aria-selected="true"] { background: var(--md-primary); color: var(--md-on-primary); }
+.att-range button:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+button.att-slot { font: inherit; text-align: left; cursor: pointer; }
+.att-slot[aria-selected="true"] { border-color: var(--md-primary); background: var(--md-primary-container); }
