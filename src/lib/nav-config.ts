@@ -53,7 +53,6 @@ const ADMIN_GROUPS: NavGroup[] = [
       { title: "Smart ID Cards", href: "/admin/smart-id", icon: "qr", module: "smartid.manage" },
       { title: "Devices", href: "/admin/devices", icon: "monitor", module: "devices.manage" },
       { title: "Audit & Logins", href: "/admin/audit", icon: "shieldCheck", module: "audit.view" },
-      { title: "AI Copilot", href: "/admin/copilot", icon: "sparkles", module: "ai.use" },
     ],
   },
 ];
@@ -66,7 +65,6 @@ const TEACHER_GROUPS: NavGroup[] = [
       { title: "Overview", href: "/teacher", icon: "dashboard" },
       { title: "My Timetable", href: "/teacher/timetable", icon: "calendar" },
       { title: "Library", href: "/teacher/library", icon: "read", module: "library.manage" },
-      { title: "AI Copilot", href: "/teacher/copilot", icon: "sparkles", module: "ai.use" },
     ],
   },
 ];
@@ -79,7 +77,6 @@ const STUDENT_GROUPS: NavGroup[] = [
       { title: "Learning Home", href: "/student", icon: "home" },
       { title: "Today's Timetable", href: "/student/timetable", icon: "calendar" },
       { title: "Library", href: "/student/library", icon: "read" },
-      { title: "AI Copilot", href: "/student/copilot", icon: "sparkles", module: "ai.use" },
     ],
   },
 ];

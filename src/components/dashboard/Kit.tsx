@@ -470,7 +470,7 @@ export function EntityHero({
       <div className="cd-hero-id">
         <div className="cd-av is-lg">
           {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+            <img src={avatarUrl} alt="Profile photo" className="w-full h-full object-cover" />
           ) : (
             avNode
           )}

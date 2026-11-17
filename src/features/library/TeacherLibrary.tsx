@@ -84,7 +84,7 @@ export function TeacherLibrary({ rows, subjects, storageReady }: { rows: Materia
           <Field label="Title" required><input value={v.title} onChange={(e) => setV((s) => ({ ...s, title: e.target.value }))} maxLength={255} /></Field>
           <Field label="Description"><textarea value={v.description} onChange={(e) => setV((s) => ({ ...s, description: e.target.value }))} maxLength={2000} /></Field>
           <Field label="File" required>
-            <input ref={input} type="file" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <input ref={input} aria-label="Choose a file to upload" type="file" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </Field>
           <Field label="Visibility">
             <M3Select value={v.publish} onChange={(x) => setV((s) => ({ ...s, publish: x }))} options={[{ value: "true", label: "Publish to students now" }, { value: "false", label: "Save as draft" }]} />

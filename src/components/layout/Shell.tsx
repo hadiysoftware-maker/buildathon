@@ -83,6 +83,9 @@ export function DashboardShell({
     setCopilot(!(copilotOpen ?? wide));
   };
   const hasCopilot = allowedModules.includes("ai.use");
+  // The full Copilot page replaces the side panel. Read from the real URL on the client (false while hydrating) so
+  // server and client markup always match.
+  const onCopilotPage = useSyncExternalStore(() => () => {}, () => window.location.pathname.endsWith("/copilot"), () => false);
   const pageName = useMemo(() => getPageTitle(pathname), [pathname]);
 
   useEffect(() => {
@@ -100,6 +103,7 @@ export function DashboardShell({
   return (
     <PermissionsProvider user={user} allowedModules={allowedModules}>
       <div className="ds-app">
+        <a href="#main" className="skip-link">Skip to content</a>
         <Header
           user={user}
           homeHref={homeHref}
@@ -107,22 +111,32 @@ export function DashboardShell({
           onMenuClick={() => setDrawerOpen(true)}
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onOpenAccount={() => setAccountOpen(true)}
-          onToggleCopilot={hasCopilot ? toggleCopilot : undefined}
+          onToggleCopilot={hasCopilot && !onCopilotPage ? toggleCopilot : undefined}
           copilotOpen={copilotOpen ?? undefined}
         />
         <div className="ds-body">
           <Sidebar user={user} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
           <div className="ds-panel">
             <PanelCrumbs pathname={pathname} homeHref={homeHref} />
-            <main key={pathname} className="ds-main animate-page-in print:p-0">
+            <main id="main" tabIndex={-1} key={pathname} className="ds-main animate-page-in print:p-0">
               {children}
             </main>
           </div>
-          {hasCopilot && <CopilotDrawer open={copilotOpen} onClose={() => setCopilot(false)} role={user.role} />}
+          {hasCopilot && !onCopilotPage && <CopilotDrawer open={copilotOpen} onClose={() => setCopilot(false)} role={user.role} fullPageHref={`${homeHref}/copilot`} />}
         </div>
         <MobileBottomNav userRole={user.role} />
         <ResponsiveTables />
-        <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} userRole={user.role} />
+        <CommandPalette
+          isOpen={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          userRole={user.role}
+          userId={user.id}
+          onAction={(a) => {
+            if (a === "copilot") { if (onCopilotPage) return; setCopilot(true); }
+            else if (a === "account") setAccountOpen(true);
+            else void fetch("/api/auth/logout", { method: "POST" }).finally(() => { window.location.href = "/login"; });
+          }}
+        />
         <AccountDialog open={accountOpen} onClose={() => setAccountOpen(false)} user={user} />
       </div>
     </PermissionsProvider>

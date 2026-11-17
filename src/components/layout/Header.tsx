@@ -56,7 +56,7 @@ export function Header({ homeHref, user, onOpenCommandPalette, onOpenAccount, on
 
       <div className="ds-topbar-left">
         <Link href={homeHref} className="ds-brand" aria-label="Campus 2035 home">
-          <Logo size={34} variant="inverted" />
+          <Logo size={34} sub="" />
         </Link>
       </div>
 
@@ -93,7 +93,7 @@ export function Header({ homeHref, user, onOpenCommandPalette, onOpenAccount, on
             <span className="ds-avatar" style={{ width: 34, height: 34, fontSize: 13, overflow: "hidden" }}>
               {user.photoId ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={`/api/files/${user.photoId}`} alt="" width={34} height={34} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img src={`/api/files/${user.photoId}`} alt={`${displayName} profile photo`} width={34} height={34} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 displayName.slice(0, 1).toUpperCase()
               )}

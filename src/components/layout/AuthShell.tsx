@@ -23,7 +23,7 @@ export function AuthShell({
           <Logo size={32} />
           <div className="lg-stage">
             <p className="lg-bubble">{bubble}</p>
-            <Mascot mood="happy" pose="wave" prop="book" size={190} />
+            <Mascot mood="happy" pose="wave" prop="book" size={190} label="Nova, the Campus 2035 robot, waving" />
           </div>
           <div className="lg-side-foot">
             <b>Campus 2035</b>

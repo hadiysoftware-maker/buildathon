@@ -23,7 +23,7 @@ export function LogoMark({ size = 32, variant = "color" }: { size?: number; vari
   );
 }
 
-export function Logo({ size = 30, sub = "Smart classroom OS", variant = "color" }: { size?: number; sub?: string; variant?: Variant }) {
+export function Logo({ size = 30, sub = "", variant = "color" }: { size?: number; sub?: string; variant?: Variant }) {
   const light = variant === "inverted";
   return (
     <span className="inline-flex items-center gap-2.5 min-w-0">

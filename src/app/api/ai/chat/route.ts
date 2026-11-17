@@ -4,16 +4,17 @@ import { assertSameOrigin, handle } from "@/lib/api";
 import { requirePermission } from "@/lib/auth/guards";
 import { rateLimit } from "@/lib/auth/rate-limit";
 import { prisma } from "@/lib/db";
-import { aiConfigured, aiModel, streamChat, type ChatMessage } from "@/lib/ai/gateway";
+import { agentChat, aiConfigured, aiModel, type ChatMessage } from "@/lib/ai/gateway";
+import { runTool, toolSpecs } from "@/lib/ai/tools";
 import { systemPromptFor } from "@/lib/ai/context";
 import { chatCryptoConfigured, decryptChat, encryptChat } from "@/lib/ai/crypto";
 
 const Body = z.object({
-  conversationId: z.string().max(30).optional(),
+  conversationId: z.string().regex(/^[a-z0-9]{10,30}$/).optional(),
   message: z.string().trim().min(1, "Type a message").max(4000),
 });
 
-const HISTORY = 12;
+const HISTORY = 8; // fewer past turns keeps each request small
 
 export async function POST(req: Request) {
   return handle(async () => {
@@ -26,9 +27,18 @@ export async function POST(req: Request) {
     const { conversationId, message } = Body.parse(await req.json());
 
     // Conversations are private to their owner.
-    let convo = conversationId ? await prisma.aIConversation.findFirst({ where: { id: conversationId, userId: s.userId } }) : null;
-    if (conversationId && !convo) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
-    convo ??= await prisma.aIConversation.create({ data: { userId: s.userId, title: encryptChat(s.userId, message.slice(0, 80)), contextType: s.role.toLowerCase() } });
+    // The client picks the id up front, so retries and double clicks reuse one conversation instead of creating two.
+    let convo = conversationId ? await prisma.aIConversation.findUnique({ where: { id: conversationId } }) : null;
+    if (convo && convo.userId !== s.userId) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+    if (!convo) {
+      try {
+        convo = await prisma.aIConversation.create({ data: { ...(conversationId ? { id: conversationId } : {}), userId: s.userId, title: encryptChat(s.userId, message.slice(0, 80)), contextType: s.role.toLowerCase() } });
+      } catch (e) {
+        // A parallel request created it first: use that one.
+        convo = conversationId ? await prisma.aIConversation.findFirst({ where: { id: conversationId, userId: s.userId } }) : null;
+        if (!convo) throw e;
+      }
+    }
 
     const past = await prisma.aIMessage.findMany({ where: { conversationId: convo.id, role: { in: ["USER", "ASSISTANT"] } }, orderBy: { createdAt: "desc" }, take: HISTORY });
     await prisma.aIMessage.create({ data: { conversationId: convo.id, role: "USER", content: encryptChat(s.userId, message) } });
@@ -43,7 +53,7 @@ export async function POST(req: Request) {
     const cid = convo.id;
     let stream: ReadableStream<Uint8Array>;
     try {
-      stream = await streamChat(messages, async (full, usage) => {
+      stream = await agentChat(messages, toolSpecs(s.role), (name, args) => runTool(s, name, args), async (full, usage) => {
       if (full) {
         await prisma.aIMessage.create({ data: { conversationId: cid, role: "ASSISTANT", content: encryptChat(s.userId, full), tokensIn: usage.promptTokens, tokensOut: usage.completionTokens } });
         await prisma.aIConversation.update({ where: { id: cid }, data: { updatedAt: new Date() } });

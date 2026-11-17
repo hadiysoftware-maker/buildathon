@@ -112,3 +112,80 @@ export async function streamChat(
     },
   });
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Agent mode: the model may call read-only tools (see tools.ts) before answering. Tool rounds are not streamed (one
+// short call each, low reasoning effort); the final answer is sent to the browser as soon as it is ready. Using the
+// model's own final message (instead of a second streaming call) saves tokens.
+// ---------------------------------------------------------------------------------------------------------------
+
+type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
+type AgentMsg = { role: "system" | "user" | "assistant" | "tool"; content: string | null; tool_calls?: ToolCall[]; tool_call_id?: string };
+
+async function completeOnce(messages: AgentMsg[], tools: unknown[], opts: { signal?: AbortSignal; maxTokens: number }) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new AiNotConfigured();
+  let status = 0;
+  for (const model of aiModels()) {
+    for (const withTools of tools.length ? [true, false] : [false]) {
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        signal: opts.signal,
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          messages,
+          ...(withTools ? { tools, tool_choice: "auto" } : {}),
+          ...(model.includes("gpt-oss") ? { reasoning_effort: "low" } : {}),
+          temperature: 0.3,
+          max_completion_tokens: opts.maxTokens,
+        }),
+      });
+      if (res.ok) {
+        const j = (await res.json()) as { choices?: { message?: { content?: string | null; tool_calls?: ToolCall[] } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+        return { message: j.choices?.[0]?.message ?? {}, usage: j.usage, model };
+      }
+      status = res.status;
+      console.error("Groq error", model, res.status, (await res.text().catch(() => "")).slice(0, 200));
+      if (res.status === 400 && withTools) continue; // the model could not use tools: retry it without
+      break;
+    }
+    if (![400, 404, 429, 503, 413].includes(status)) break;
+  }
+  throw new Error(status === 429 ? "The AI service is busy. Please try again in a moment." : "The AI service could not answer right now.");
+}
+
+export async function agentChat(
+  messages: ChatMessage[],
+  tools: unknown[],
+  exec: (name: string, args: string) => Promise<string>,
+  onDone: (full: string, usage: Usage) => Promise<void> | void,
+  opts: { signal?: AbortSignal; maxRounds?: number; maxTokens?: number } = {},
+): Promise<ReadableStream<Uint8Array>> {
+  const convo: AgentMsg[] = messages.map((m) => ({ role: m.role, content: m.content }));
+  const usage: Usage = { promptTokens: 0, completionTokens: 0 };
+  let text = "";
+  for (let round = 0; round < (opts.maxRounds ?? 3); round++) {
+    const last = round === (opts.maxRounds ?? 3) - 1;
+    const { message, usage: u } = await completeOnce(convo, last ? [] : tools, { signal: opts.signal, maxTokens: opts.maxTokens ?? 900 });
+    usage.promptTokens = (usage.promptTokens ?? 0) + (u?.prompt_tokens ?? 0);
+    usage.completionTokens = (usage.completionTokens ?? 0) + (u?.completion_tokens ?? 0);
+    if (message.tool_calls?.length && !last) {
+      convo.push({ role: "assistant", content: message.content ?? null, tool_calls: message.tool_calls });
+      for (const c of message.tool_calls) convo.push({ role: "tool", tool_call_id: c.id, content: await exec(c.function.name, c.function.arguments) });
+      continue;
+    }
+    text = (message.content ?? "").trim();
+    break;
+  }
+  if (!text) text = "I could not put together an answer. Please try asking again.";
+
+  const enc = new TextEncoder();
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      for (let i = 0; i < text.length; i += 48) controller.enqueue(enc.encode(text.slice(i, i + 48)));
+      await onDone(text, usage);
+      controller.close();
+    },
+  });
+}

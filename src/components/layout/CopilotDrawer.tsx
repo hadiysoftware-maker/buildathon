@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { Mascot } from "@/components/ui/Mascot";
 import { toast } from "@/components/ui/Toast";
@@ -14,8 +15,10 @@ const SUGGEST: Record<string, string[]> = {
   default: ["Draft a circular", "How do I replace a Smart ID card?", "Outline a term report"],
 };
 
+const newConvoId = () => "c" + Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => (b % 36).toString(36)).join("");
+
 /** Right-hand Copilot panel with chat history. Opened from the top bar; streams from /api/ai/chat. */
-export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose: () => void; role: string }) {
+export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: boolean; onClose: () => void; role: string; fullPageHref?: string }) {
   const [view, setView] = useState<"chat" | "history">("chat");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [convos, setConvos] = useState<Convo[]>([]);
@@ -24,6 +27,7 @@ export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
+  const sending = useRef(false);
 
   const loadHistory = useCallback(async () => {
     const r = await fetch("/api/ai/conversations").catch(() => null);
@@ -49,6 +53,8 @@ export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose
   const newChat = () => {
     abort.current?.abort();
     setCid(null);
+    sending.current = false;
+    setBusy(false);
     setMsgs([]);
     setView("chat");
   };
@@ -72,7 +78,10 @@ export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose
 
   const send = async (raw: string) => {
     const message = raw.trim();
-    if (!message || busy) return;
+    if (!message || sending.current) return;
+    sending.current = true;
+    const convoId = cid ?? newConvoId(); // created up front so a retry or double click can never make a second chat
+    setCid(convoId);
     setText("");
     setBusy(true);
     const reply: Msg = { id: `a${Date.now()}`, role: "ASSISTANT", content: "" };
@@ -82,15 +91,13 @@ export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId: cid ?? undefined, message }),
+        body: JSON.stringify({ conversationId: convoId, message }),
         signal: abort.current.signal,
       });
       if (!res.ok || !res.body) {
         const e = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(e.error ?? "The copilot could not answer.");
       }
-      const id = res.headers.get("x-conversation-id");
-      if (id) setCid(id);
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       for (;;) {
@@ -104,6 +111,7 @@ export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose
       if ((e as Error).name !== "AbortError") toast.error(e instanceof Error ? e.message : "Something went wrong.");
       setMsgs((m) => m.filter((x) => x.id !== reply.id || x.content));
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };
@@ -121,6 +129,7 @@ export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose
           <span style={{ display: "flex", gap: 4 }}>
             <button type="button" className="ds-icon-btn" onClick={newChat} aria-label="New chat" title="New chat"><Icon name="add" size={18} /></button>
             <button type="button" className="ds-icon-btn" onClick={() => setView((v) => (v === "chat" ? "history" : "chat"))} aria-label="Chat history" title="History" aria-pressed={view === "history"}><Icon name="history" size={18} /></button>
+            {fullPageHref && <Link href={fullPageHref} className="ds-icon-btn" aria-label="Open Copilot as a full page" title="Open full page"><Icon name="external" size={18} /></Link>}
             <button type="button" className="ds-icon-btn" onClick={onClose} aria-label="Close copilot"><Icon name="close" size={18} /></button>
           </span>
         </header>
@@ -142,7 +151,7 @@ export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose
           <div className="cp-body" aria-live="polite">
             {msgs.length === 0 ? (
               <div style={{ display: "grid", justifyItems: "center", gap: 10, padding: "12px 4px" }}>
-                <Mascot mood="happy" pose="wave" size={96} />
+                <Mascot mood="happy" pose="wave" size={96} label="Nova, your study buddy" />
                 <strong>Hi, I am Nova. How can I help?</strong>
                 {chips.map((s) => (
                   <button key={s} type="button" className="ds-btn tonal sm" disabled={busy} onClick={() => send(s)}>{s}</button>

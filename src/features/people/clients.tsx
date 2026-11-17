@@ -40,7 +40,7 @@ function CsvImport({ run, label }: { run: (csv: string) => Promise<{ ok: true; d
   };
   return (
     <>
-      <input ref={ref} type="file" accept=".csv,text/csv" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+      <input ref={ref} aria-label="Choose a CSV file to import" type="file" accept=".csv,text/csv" hidden onChange={(e) => onFile(e.target.files?.[0])} />
       <button type="button" className="ds-btn outline sm" disabled={pending} onClick={() => ref.current?.click()}>
         <Icon name="fileImport" size={16} /> {pending ? "Importing…" : "Import CSV"}
       </button>

@@ -47,7 +47,7 @@ export function AccountDialog({
           <span className="cd-muted">{user.role.replace(/_/g, " ").toLowerCase()}</span>
         </Field>
         <Field label="Profile photo" hint="JPG, PNG or WebP, up to 2 MB.">
-          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(e) => onPhoto(e.target.files?.[0])} />
+          <input type="file" aria-label="Choose a profile photo" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(e) => onPhoto(e.target.files?.[0])} />
         </Field>
         <Field label="Text size">
           <Segmented

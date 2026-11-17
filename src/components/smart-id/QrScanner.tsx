@@ -134,7 +134,7 @@ export function QrScanner({ onScan, idleHint = "Position your Smart ID card insi
   return (
     <div className="cd-card" style={{ overflow: "hidden" }}>
       <div style={{ position: "relative", background: "#000", aspectRatio: "4 / 3" }}>
-        <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <video ref={videoRef} aria-label="Camera preview for scanning your Smart ID card" playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         {phase === "scanning" && <div className="c35-scan-line" aria-hidden="true" />}
         {(phase === "verifying" || phase === "success") && (
           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(0,0,0,.55)", color: "#fff" }}>
@@ -162,7 +162,7 @@ export function QrScanner({ onScan, idleHint = "Position your Smart ID card insi
           <button type="button" className="ds-btn outline sm" onClick={() => fileRef.current?.click()}>
             <Icon name="image" size={16} /> Upload card image
           </button>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
+          <input ref={fileRef} aria-label="Upload a photo of your Smart ID card" type="file" accept="image/*" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
         </div>
       </div>
 

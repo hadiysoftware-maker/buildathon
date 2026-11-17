@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageHeader, PageWrap } from "@/components/dashboard/Kit";
+import { PageWrap } from "@/components/dashboard/Kit";
 import { Icon } from "@/components/ui/Icon";
 import { Mascot } from "@/components/ui/Mascot";
 import { toast } from "@/components/ui/Toast";
 
+const newConvoId = () => "c" + Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => (b % 36).toString(36)).join("");
 export interface ChatMsg { id: string; role: "USER" | "ASSISTANT"; content: string }
 export interface ConvoItem { id: string; title: string }
 
@@ -27,13 +28,17 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
   const [cid, setCid] = useState<string | null>(activeId);
   const end = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
+  const sending = useRef(false);
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs]);
   useEffect(() => () => abort.current?.abort(), []);
 
   const send = async (raw: string) => {
     const message = raw.trim();
-    if (!message || busy) return;
+    if (!message || sending.current) return;
+    sending.current = true;
+    const convoId = cid ?? newConvoId();
+    setCid(convoId);
     setText("");
     setBusy(true);
     const mine: ChatMsg = { id: `u${Date.now()}`, role: "USER", content: message };
@@ -44,14 +49,13 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId: cid ?? undefined, message }),
+        body: JSON.stringify({ conversationId: convoId, message }),
         signal: abort.current.signal,
       });
       if (!res.ok || !res.body) {
         const e = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(e.error ?? "The copilot could not answer.");
       }
-      const newId = res.headers.get("x-conversation-id");
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       for (;;) {
@@ -60,23 +64,23 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
         const chunk = dec.decode(value, { stream: true });
         setMsgs((m) => m.map((x) => (x.id === reply.id ? { ...x, content: x.content + chunk } : x)));
       }
-      if (newId && newId !== cid) {
-        setCid(newId);
-        router.replace(`${base}?c=${newId}`, { scroll: false });
-      }
+      if (convoId !== activeId) router.replace(`${base}?c=${convoId}`, { scroll: false });
       router.refresh();
     } catch (e) {
       if ((e as Error).name !== "AbortError") toast.error(e instanceof Error ? e.message : "Something went wrong.");
       setMsgs((m) => m.filter((x) => x.id !== reply.id || x.content));
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };
 
   return (
     <PageWrap>
-      <PageHeader eyebrow={eyebrow} title="AI Copilot" description="Ask Nova for help. Answers can be wrong, so check important facts."
-        actions={<Link href={base} className="ds-btn outline sm"><Icon name="add" size={16} /> New chat</Link>} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <p className="cd-muted" style={{ margin: 0 }}>Nova can be wrong. Check important facts.</p>
+        <Link href={base} className="ds-btn outline sm"><Icon name="add" size={16} /> New chat</Link>
+      </div>
       {!aiReady && <div className="cd-banner" data-tone="warn" role="status"><Icon name="alert" size={16} /> The AI service is not configured yet (GROQ_API_KEY is missing), so the copilot cannot answer.</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 220px) minmax(0, 1fr)", gap: 16, alignItems: "start" }} className="nv-chat-grid">
@@ -95,7 +99,7 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
           <div style={{ overflowY: "auto", padding: 16, display: "grid", gap: 12, alignContent: "start" }} aria-live="polite">
             {msgs.length === 0 ? (
               <div style={{ display: "grid", justifyItems: "center", gap: 12, padding: "8px 0" }}>
-                <Mascot mood="happy" pose="wave" prop="book" size={130} />
+                <Mascot mood="happy" pose="wave" prop="book" size={130} label="Nova, your study buddy" />
                 <strong>Hi, I am Nova. What shall we work on?</strong>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
                   {suggestions.map((s) => <button key={s} type="button" className="ds-btn tonal sm" disabled={!aiReady || busy} onClick={() => send(s)}>{s}</button>)}
