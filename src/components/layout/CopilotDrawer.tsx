@@ -7,6 +7,7 @@ import type { Block } from "@/lib/ai/blocks";
 import { Icon } from "@/components/ui/Icon";
 import { Mascot } from "@/components/ui/Mascot";
 import { toast } from "@/components/ui/Toast";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 interface Msg { id: string; role: "USER" | "ASSISTANT"; content: string; blocks?: Block[] }
 interface Convo { id: string; title: string; updatedAt: string }
@@ -27,6 +28,7 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
   const [cid, setCid] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
   const sending = useRef(false);
@@ -73,7 +75,9 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
   };
 
   const removeConvo = async (id: string) => {
-    await fetch(`/api/ai/conversations/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/ai/conversations/${id}`, { method: "DELETE" });
+    if (!res.ok) { toast.error("Could not delete the chat."); return; }
+    toast.success("Chat deleted");
     if (id === cid) newChat();
     void loadHistory();
   };
@@ -130,6 +134,7 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
           </strong>
           <span style={{ display: "flex", gap: 4 }}>
             <button type="button" className="ds-icon-btn" onClick={newChat} aria-label="New chat" title="New chat"><Icon name="add" size={18} /></button>
+            {cid && msgs.length > 0 && view === "chat" && <button type="button" className="ds-icon-btn" onClick={() => setPendingDelete({ id: cid, title: convos.find((c) => c.id === cid)?.title ?? "this chat" })} aria-label="Delete this chat" title="Delete chat"><Icon name="delete" size={18} /></button>}
             <button type="button" className="ds-icon-btn" onClick={() => setView((v) => (v === "chat" ? "history" : "chat"))} aria-label="Chat history" title="History" aria-pressed={view === "history"}><Icon name="history" size={18} /></button>
             {fullPageHref && <Link href={fullPageHref} className="ds-icon-btn" aria-label="Open Copilot as a full page" title="Open full page"><Icon name="external" size={18} /></Link>}
             <button type="button" className="ds-icon-btn" onClick={onClose} aria-label="Close copilot"><Icon name="close" size={18} /></button>
@@ -145,7 +150,7 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
                   <span className="ds-label">{c.title}</span>
                   <small className="cd-muted">{new Date(c.updatedAt).toLocaleDateString()}</small>
                 </button>
-                <button type="button" className="ds-icon-btn" onClick={() => removeConvo(c.id)} aria-label={`Delete chat ${c.title}`}><Icon name="delete" size={16} /></button>
+                <button type="button" className="ds-icon-btn" onClick={() => setPendingDelete({ id: c.id, title: c.title })} aria-label={`Delete chat ${c.title}`}><Icon name="delete" size={16} /></button>
               </div>
             ))}
           </div>
@@ -179,6 +184,15 @@ export function CopilotDrawer({ open, onClose, role, fullPageHref }: { open?: bo
           </form>
         )}
       </aside>
+      <ConfirmModal
+        isOpen={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={async () => { if (pendingDelete) await removeConvo(pendingDelete.id); setPendingDelete(null); }}
+        title="Delete this chat?"
+        description={pendingDelete ? `"${pendingDelete.title}" and all its messages will be permanently deleted. This cannot be undone.` : ""}
+        confirmText="Delete chat"
+        variant="danger"
+      />
     </>
   );
 }

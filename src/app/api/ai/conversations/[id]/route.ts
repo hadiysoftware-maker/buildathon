@@ -24,6 +24,7 @@ export async function DELETE(req: Request, { params }: Ctx) {
     const s = await requirePermission("ai.use");
     const { id } = await params;
     const r = await prisma.aIConversation.deleteMany({ where: { id, userId: s.userId } });
-    return NextResponse.json({ ok: r.count > 0 });
+    if (r.count === 0) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+    return NextResponse.json({ ok: true });
   });
 }

@@ -9,6 +9,7 @@ import type { Block } from "@/lib/ai/blocks";
 import { Icon } from "@/components/ui/Icon";
 import { Mascot } from "@/components/ui/Mascot";
 import { toast } from "@/components/ui/Toast";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 const newConvoId = () => "c" + Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => (b % 36).toString(36)).join("");
 export interface ChatMsg { id: string; role: "USER" | "ASSISTANT"; content: string; blocks?: Block[] }
@@ -31,6 +32,18 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
   const end = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
   const sending = useRef(false);
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const list = conversations.filter((c) => !removed.has(c.id));
+
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const removeChat = async (id: string) => {
+    const res = await fetch(`/api/ai/conversations/${id}`, { method: "DELETE" });
+    if (!res.ok) { toast.error("Could not delete the chat."); return; }
+    setRemoved((r) => new Set(r).add(id));
+    toast.success("Chat deleted");
+    if (id === cid) router.replace(base);
+    else router.refresh();
+  };
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs]);
   useEffect(() => () => abort.current?.abort(), []);
@@ -81,18 +94,26 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
     <PageWrap>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <p className="cd-muted" style={{ margin: 0 }}>Nova can be wrong. Check important facts.</p>
-        <Link href={base} className="ds-btn outline sm"><Icon name="add" size={16} /> New chat</Link>
+        <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+          {cid && list.some((c) => c.id === cid) && (
+            <button type="button" className="ds-btn outline sm" onClick={() => setPendingDelete({ id: cid, title: list.find((c) => c.id === cid)?.title ?? "this chat" })}><Icon name="delete" size={16} /> Delete chat</button>
+          )}
+          <Link href={base} className="ds-btn outline sm"><Icon name="add" size={16} /> New chat</Link>
+        </span>
       </div>
       {!aiReady && <div className="cd-banner" data-tone="warn" role="status"><Icon name="alert" size={16} /> The AI service is not configured yet (GROQ_API_KEY is missing), so the copilot cannot answer.</div>}
 
       <div className="cc-grid">
         <nav aria-label="Past chats" className="cd-card cc-history">
           <div className="cc-history-list">
-            {conversations.length === 0 && <small className="cd-muted" style={{ padding: 8 }}>No chats yet.</small>}
-            {conversations.map((c) => (
-              <Link key={c.id} href={`${base}?c=${c.id}`} className="ds-side-link" aria-current={c.id === cid ? "page" : undefined} style={{ minHeight: 36 }}>
-                <span className="ds-label">{c.title}</span>
-              </Link>
+            {list.length === 0 && <small className="cd-muted" style={{ padding: 8 }}>No chats yet.</small>}
+            {list.map((c) => (
+              <div key={c.id} className="cc-item">
+                <Link href={`${base}?c=${c.id}`} className="ds-side-link" aria-current={c.id === cid ? "page" : undefined} style={{ minHeight: 36 }}>
+                  <span className="ds-label">{c.title}</span>
+                </Link>
+                <button type="button" className="ds-icon-btn cc-del" onClick={() => setPendingDelete({ id: c.id, title: c.title })} aria-label={`Delete chat ${c.title}`} title="Delete chat"><Icon name="delete" size={16} /></button>
+              </div>
             ))}
           </div>
         </nav>
@@ -124,6 +145,15 @@ export function CopilotChat({ base, aiReady, conversations, activeId, initial, s
           </form>
         </section>
       </div>
+      <ConfirmModal
+        isOpen={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={async () => { if (pendingDelete) await removeChat(pendingDelete.id); setPendingDelete(null); }}
+        title="Delete this chat?"
+        description={pendingDelete ? `"${pendingDelete.title}" and all its messages will be permanently deleted. This cannot be undone.` : ""}
+        confirmText="Delete chat"
+        variant="danger"
+      />
     </PageWrap>
   );
 }

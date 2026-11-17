@@ -7,9 +7,12 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { ResponsiveTables } from "./ResponsiveTables";
-import { CommandPalette } from "./CommandPalette";
+import dynamic from "next/dynamic";
 import { CopilotDrawer } from "./CopilotDrawer";
-import { AccountDialog } from "./AccountDialog";
+// Opened on demand, so they stay out of the first page load.
+const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
+const AccountDialog = dynamic(() => import("./AccountDialog").then((m) => m.AccountDialog), { ssr: false });
+
 import { PermissionsProvider, type ShellUser } from "@/providers/permissions-provider";
 import { Icon } from "@/components/ui/Icon";
 import { getPageTitle } from "@/lib/nav-config";

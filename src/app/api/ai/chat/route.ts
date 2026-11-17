@@ -6,8 +6,9 @@ import { rateLimit } from "@/lib/auth/rate-limit";
 import { prisma } from "@/lib/db";
 import { agentChat, aiConfigured, aiModel, type ChatMessage } from "@/lib/ai/gateway";
 import { runTool, toolSpecs } from "@/lib/ai/tools";
+import { routeIntent } from "@/lib/ai/router";
 import { systemPromptFor } from "@/lib/ai/context";
-import { packMessage, unpackMessage } from "@/lib/ai/blocks";
+import { frame, packMessage, unpackMessage, type Block } from "@/lib/ai/blocks";
 import { chatCryptoConfigured, decryptChat, encryptChat } from "@/lib/ai/crypto";
 
 const Body = z.object({
@@ -25,7 +26,6 @@ export async function POST(req: Request) {
   return handle(async () => {
     assertSameOrigin(req);
     const s = await requirePermission("ai.use");
-    if (!aiConfigured()) return NextResponse.json({ error: "The AI copilot is not configured yet. Ask an administrator to set GROQ_API_KEY." }, { status: 503 });
     if (!chatCryptoConfigured()) return NextResponse.json({ error: "Chat encryption is not configured. Ask an administrator to set CHAT_ENCRYPTION_KEY." }, { status: 503 });
     if (!(await rateLimit(`ai:${s.userId}`, 15, 60_000))) return NextResponse.json({ error: "You are sending messages too quickly. Wait a moment." }, { status: 429 });
 
@@ -44,6 +44,29 @@ export async function POST(req: Request) {
         if (!convo) throw e;
       }
     }
+
+    // Zero-token path: plain data questions run the role-scoped tools directly, with no model call.
+    const routed = routeIntent(message, s.role);
+    if (routed) {
+      const started0 = Date.now();
+      const blocks: Block[] = [];
+      const lines: string[] = [];
+      if (routed.kind === "text") lines.push(routed.text);
+      else {
+        for (const st of routed.steps) {
+          const r = await runTool(s, st.tool, JSON.stringify(st.args));
+          blocks.push(...r.blocks);
+          lines.push(r.blocks.length ? st.lead : `${st.lead} Nothing to show yet.`);
+        }
+      }
+      const text = [...new Set(lines)].join(" ");
+      await prisma.aIMessage.create({ data: { conversationId: convo.id, role: "USER", content: encryptChat(s.userId, message) } });
+      await prisma.aIMessage.create({ data: { conversationId: convo.id, role: "ASSISTANT", content: encryptChat(s.userId, packMessage(text, blocks)), tokensIn: 0, tokensOut: 0 } });
+      await prisma.aIConversation.update({ where: { id: convo.id }, data: { updatedAt: new Date() } });
+      await prisma.aIUsageRecord.create({ data: { institutionId: s.institutionId, userId: s.userId, model: "router", purpose: "copilot", promptTokens: 0, completionTokens: 0, latencyMs: Date.now() - started0 } });
+      return new Response(blocks.slice(0, 4).map(frame).join("") + text, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-conversation-id": convo.id } });
+    }
+    if (!aiConfigured()) return NextResponse.json({ error: "The AI copilot is not configured yet. Ask an administrator to set GROQ_API_KEY." }, { status: 503 });
 
     // Independent reads run together; the new user message is saved while the model works.
     const [past, system] = await Promise.all([

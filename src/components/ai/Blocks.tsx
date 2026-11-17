@@ -147,6 +147,19 @@ function Materials({ items }: { items: Extract<Block, { type: "materials" }>["it
   );
 }
 
+function PageLinks({ items }: { items: Extract<Block, { type: "links" }>["items"] }) {
+  return (
+    <div className="ai-people">
+      {items.map((l) => (
+        <Link key={l.href} href={l.href} className="ai-person" aria-label={`Open ${l.label}`}>
+          <span className="ai-file" aria-hidden="true">GO</span>
+          <span className="ai-person-main"><strong>{l.label}</strong>{l.hint && <small>{l.hint}</small>}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function Summary({ title, points, next }: { title: string; points: string[]; next?: string }) {
   return (
     <section className="ai-summary" aria-label={title}>
@@ -166,6 +179,7 @@ export function BlockView({ block }: { block: Block }) {
     case "teachers": return <TeacherCards items={block.items} />;
     case "timeline": return <Timeline date={block.date} rows={block.rows} />;
     case "materials": return <Materials items={block.items} />;
+    case "links": return <PageLinks items={block.items} />;
     case "summary": return <Summary title={block.title} points={block.points} next={block.next} />;
     default: return null;
   }

@@ -1824,3 +1824,8 @@ img, svg, video, canvas { max-width: 100%; }
 .dk-table td, .dk-table th { white-space: nowrap; }
 .dk-table td:first-child:empty, .dk-table th:first-child:empty { width: 0; padding-inline: 4px; }
 .dk-table td .inline-flex { flex-wrap: nowrap; }
+.cc-item { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.cc-item .ds-side-link { flex: 1 1 auto; min-width: 0; }
+.cc-del { flex: none; opacity: .55; width: 32px; height: 32px; }
+.cc-item:hover .cc-del, .cc-del:focus-visible { opacity: 1; }
+@media (max-width: 900px) { .cc-item { flex: none; max-width: 260px; } }

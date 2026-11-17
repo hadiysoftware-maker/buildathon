@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>EduCore · Campus 2035 · Judges' brochure</title>
+<style>
+@page{size:A4;margin:0}
+:root{--teal:#0F766E;--deep:#0B4F4A;--ink:#0B2A2C;--mint:#E8F3F1;--amber:#F5B83D;--mute:#4B6B6D}
+*{box-sizing:border-box}body{margin:0;font:400 11.5pt/1.5 "Segoe UI",Arial,sans-serif;color:var(--ink)}
+h1,h2,h3{margin:0;font-family:"Segoe UI Semibold","Segoe UI",Arial,sans-serif}
+.page{width:210mm;height:297mm;padding:16mm 15mm;position:relative;overflow:hidden;page-break-after:always;background:#fff}
+.cover{background:linear-gradient(160deg,var(--deep),var(--teal));color:#fff;display:flex;flex-direction:column;justify-content:space-between}
+.tag{display:inline-block;background:var(--amber);color:var(--ink);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:10pt;padding:6px 14px;border-radius:99px}
+.cover h1{font-size:50pt;line-height:1.02;margin:16px 0 10px}.cover h1 span{color:var(--amber)}
+.cover p{font-size:14pt;max-width:150mm;opacity:.95}
+.pill{display:inline-block;border:1px solid rgba(255,255,255,.5);border-radius:99px;padding:4px 12px;margin:3px 4px 0 0;font-size:10pt}
+.lab{font-size:9pt;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--teal)}
+h2{font-size:22pt;margin:4px 0 10px;color:var(--deep)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10mm}
+.box{border-radius:16px;padding:6mm;border:1px solid #cfe3df;background:var(--mint)}
+.prob{background:#FDECEE;border-color:#f3c6cb}.sol{background:var(--mint)}
+.box h3{font-size:14pt;margin-bottom:6px}
+ul{margin:6px 0 0;padding-left:18px}li{margin:3px 0}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm;margin-top:6mm}
+.card{border:1px solid #cfe3df;border-radius:14px;padding:5mm;background:#fff}.card b{color:var(--teal)}
+.stat{font-size:26pt;font-weight:700;color:var(--teal);line-height:1}
+.foot{position:absolute;left:15mm;right:15mm;bottom:10mm;font-size:8.5pt;color:var(--mute);display:flex;justify-content:space-between;border-top:1px solid #cfe3df;padding-top:3mm}
+.flow{display:flex;gap:4mm;margin:5mm 0}.step{flex:1;background:var(--deep);color:#fff;border-radius:12px;padding:4mm;font-size:10pt}.step b{color:var(--amber);display:block;font-size:14pt}
+table{width:100%;border-collapse:collapse;font-size:10pt;margin-top:4mm}th{background:var(--deep);color:#fff;text-align:left;padding:6px 8px}td{padding:6px 8px;border-bottom:1px solid #cfe3df;vertical-align:top}
+</style></head><body>
+
+<section class="page cover">
+  <div><img src="../public/brand/mark-inverted.svg" width="70" alt="EduCore logo">
+    <div style="margin-top:34mm"><span class="tag">Project subject · Campus 2035</span>
+    <h1>Edu<span>Core</span></h1>
+    <p>The smart-classroom operating system for schools: one Smart ID card opens the whole school day for students, teachers and administrators, with a private AI copilot that works on live school data.</p></div></div>
+  <div>
+    <span class="pill">Smart ID sign-in</span><span class="pill">Role-based access</span><span class="pill">AI Copilot (Nova)</span><span class="pill">Study material on R2</span><span class="pill">Encrypted chats</span>
+    <p style="font-size:10.5pt;margin-top:10mm;opacity:.9">Prepared for the review panel · Built at the buildathon · Next.js 16, TypeScript, MySQL, Prisma, Cloudflare R2, Groq</p>
+  </div>
+</section>
+
+<section class="page">
+  <div class="lab">The problem and our solution</div>
+  <h2>Campus 2035 asks: what does a school look like in 10 years?</h2>
+  <p>Today a school day runs on paper registers, shared passwords, scattered files and manual lookups. EduCore is our answer: a campus where identity, timetable, study material and AI help are one connected system.</p>
+  <div class="two" style="margin-top:6mm">
+    <div class="box prob"><h3>The problem</h3><ul>
+      <li><b>Slow, insecure sign-in:</b> shared logins and forgotten passwords waste lesson time and cannot prove who is who.</li>
+      <li><b>Scattered information:</b> timetables, notes and notices live in chats, paper and different apps.</li>
+      <li><b>Admin overload:</b> counting students, tracking cards and workloads is done by hand.</li>
+      <li><b>Unsafe AI:</b> general chatbots see no school data, and student chats are not private.</li>
+      <li><b>Cost:</b> AI used for every question is expensive for schools.</li>
+    </ul></div>
+    <div class="box sol"><h3>Our solution</h3><ul>
+      <li><b>Smart ID card:</b> tap or scan a card; a username and password is the backup for teachers and students.</li>
+      <li><b>One portal per role</b> (Admin, Teacher, Student) showing only what that role may see.</li>
+      <li><b>Live timetable and Library:</b> teachers upload, students read, files stay private on R2.</li>
+      <li><b>Nova, the AI copilot:</b> answers with charts, cards and timelines from real data.</li>
+      <li><b>Chats encrypted per user:</b> only the owner can read their history.</li>
+      <li><b>Zero-token routing:</b> everyday data questions skip the AI and cost nothing.</li>
+    </ul></div>
+  </div>
+  <h2 style="margin-top:8mm;font-size:17pt">How one school day works</h2>
+  <div class="flow"><div class="step"><b>1</b>Admin issues Smart ID cards</div><div class="step"><b>2</b>Student scans in, sees today's classes</div><div class="step"><b>3</b>Teacher publishes material</div><div class="step"><b>4</b>Nova answers from live data</div></div>
+  <div class="grid3">
+    <div class="card"><div class="stat">3</div>roles, each with its own portal and permissions</div>
+    <div class="card"><div class="stat">15</div>AI tools, all read-only except "mark my notifications read"</div>
+    <div class="card"><div class="stat">0</div>tokens spent on plain data questions (routed directly)</div>
+  </div>
+  <div class="foot"><span>EduCore · Campus 2035</span><span>Page 2</span></div>
+</section>
+
+<section class="page">
+  <div class="lab">Features, security and proof</div>
+  <h2>What judges can try in two minutes</h2>
+  <table><tr><th>Role</th><th>Sign in</th><th>Try this</th></tr>
+    <tr><td><b>Admin</b></td><td>admin / password</td><td>Smart ID cards (issue, replace, revoke); ask Nova "school stats, students per division and find Zoya" and see a donut, a bar chart and student cards.</td></tr>
+    <tr><td><b>Teacher</b></td><td>Smart ID or username</td><td>Today's timeline, upload study material in Library, ask "my week load".</td></tr>
+    <tr><td><b>Student</b></td><td>Smart ID or username</td><td>Today's classes, read published material, ask "my attendance" or "my subjects".</td></tr>
+  </table>
+  <div class="two" style="margin-top:6mm">
+    <div class="box"><h3>Security by design</h3><ul>
+      <li>Argon2id passwords, lockout after 5 failures, rate limits</li>
+      <li>Smart ID secrets shown once, stored as HMAC hashes</li>
+      <li>Permissions re-checked on the server for every page and API</li>
+      <li>AES-256-GCM chat encryption with a key per user</li>
+      <li>Private R2 bucket; files open only through signed links</li>
+    </ul></div>
+    <div class="box"><h3>AI that is cheap and agentic</h3><ul>
+      <li>Router answers common questions with no model call</li>
+      <li>Open-ended help uses a free-tier model chain with fallback</li>
+      <li>Tools run with the user's own role, never a model-chosen identity</li>
+      <li>Visual answers: donut, bar, student and teacher cards, timeline, summary, page links</li>
+    </ul></div>
+  </div>
+  <div class="box" style="margin-top:6mm"><h3>Built to deploy</h3>
+    <p style="margin:4px 0 0">Next.js 16 on Vercel, MySQL through Prisma, Cloudflare R2 for files, Groq for language. Responsive from phones to wide screens; 38 automated tests; code at <b>github.com/hadiysoftware-maker/buildathon</b>.</p></div>
+  <div class="box" style="margin-top:6mm;background:#FFF7E2;border-color:#f0d28a"><h3>Honest status</h3>
+    <p style="margin:4px 0 0">Verified: role access, per-user chat privacy, Smart ID and password sign-in, R2 upload flow (API), AI visuals. Next steps: let the AI read file contents, guardian portal, attendance marking by teachers.</p></div>
+  <div class="foot"><span>EduCore · Campus 2035</span><span>Page 3</span></div>
+</section>
+</body></html>

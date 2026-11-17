@@ -10,6 +10,7 @@ export type Block =
   | { type: "teachers"; items: { name: string; code: string; role?: string; status: string; subjects: string[]; classes: number }[] }
   | { type: "timeline"; date: string; rows: { time: string; title: string; sub?: string; state: string }[] }
   | { type: "materials"; items: { title: string; subject: string; kind: string; size: string; status: string; href?: string }[] }
+  | { type: "links"; items: { label: string; href: string; hint?: string }[] }
   | { type: "summary"; title: string; points: string[]; next?: string };
 
 const FS = "\u001e"; // record separator: frames a block inside the text stream

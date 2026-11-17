@@ -21,6 +21,33 @@ export interface ToolDef {
 const none = { type: "object", properties: {}, additionalProperties: false };
 const str = (v: unknown, max = 60) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const ADMINS = ["ADMIN", "SUPER_ADMIN"];
+
+const PAGES: Record<string, { label: string; href: string; hint: string; k: string }[]> = {
+  ADMIN: [
+    { label: "Overview", href: "/admin", hint: "School dashboard", k: "home dashboard overview" },
+    { label: "Students", href: "/admin/people/students", hint: "Add, import and manage students", k: "students people pupils" },
+    { label: "Teachers", href: "/admin/people/teachers", hint: "Staff and assignments", k: "teachers staff" },
+    { label: "Smart ID cards", href: "/admin/smart-id", hint: "Issue, replace, suspend, revoke", k: "smart id cards qr" },
+    { label: "Timetable", href: "/admin/academic/timetable", hint: "Edit the weekly timetable", k: "timetable schedule periods" },
+    { label: "Devices", href: "/admin/devices", hint: "Enroll kiosk devices", k: "devices kiosk laptop" },
+    { label: "Audit and logins", href: "/admin/audit", hint: "Sign-in activity", k: "audit logins security logs" },
+    { label: "Copilot", href: "/admin/copilot", hint: "Full-page chat", k: "copilot chat ai nova" },
+  ],
+  TEACHER: [
+    { label: "Today", href: "/teacher", hint: "Today's classes", k: "today home dashboard classes" },
+    { label: "Timetable", href: "/teacher/timetable", hint: "Your week", k: "timetable schedule week" },
+    { label: "Library", href: "/teacher/library", hint: "Upload and publish study material", k: "library materials upload notes" },
+    { label: "Copilot", href: "/teacher/copilot", hint: "Full-page chat", k: "copilot chat ai nova" },
+  ],
+  STUDENT: [
+    { label: "Today", href: "/student", hint: "Your day", k: "today home dashboard" },
+    { label: "Timetable", href: "/student/timetable", hint: "Your week", k: "timetable schedule week" },
+    { label: "Library", href: "/student/library", hint: "Study material", k: "library materials notes" },
+    { label: "Copilot", href: "/student/copilot", hint: "Full-page chat", k: "copilot chat ai nova" },
+  ],
+};
+PAGES.SUPER_ADMIN = PAGES.ADMIN;
+
 const isAdmin = (s: CurrentSession) => ADMINS.includes(s.role);
 
 const TOOLS: ToolDef[] = [
@@ -51,13 +78,15 @@ const TOOLS: ToolDef[] = [
     async run(s) {
       if (s.role === "STUDENT") {
         const enr = await prisma.enrollment.findFirst({ where: { status: "ACTIVE", student: { userId: s.userId } }, include: { division: { include: { class: { select: { name: true } } } } } });
-        if (!enr) return { data: { class: null, subjects: [] } };
+        if (!enr) return { data: { class: null, subjects: [] }, blocks: [{ type: "summary", title: "My subjects", points: ["You are not enrolled in a class yet."] }] };
         const rows = await prisma.teacherAssignment.findMany({ where: { divisionId: enr.divisionId }, select: { subject: { select: { name: true } }, teacher: { select: { user: { select: { fullName: true } } } } } });
-        return { data: { class: `${enr.division.class.name} ${enr.division.name}`, subjects: rows.map((r) => `${r.subject.name} (${r.teacher.user.fullName})`) } };
+        const subjects = rows.map((r) => `${r.subject.name} (${r.teacher.user.fullName})`);
+        return { data: { class: `${enr.division.class.name} ${enr.division.name}`, subjects }, blocks: [{ type: "summary", title: `My subjects · ${enr.division.class.name} ${enr.division.name}`, points: subjects.length ? subjects.slice(0, 6) : ["No subjects assigned yet."] }] };
       }
       const t = await prisma.teacherProfile.findUnique({ where: { userId: s.userId }, select: { id: true } });
       const rows = t ? await prisma.teacherAssignment.findMany({ where: { teacherId: t.id }, select: { subject: { select: { name: true } }, division: { select: { name: true, class: { select: { name: true } } } } } }) : [];
-      return { data: { teaches: rows.map((r) => `${r.subject.name}: ${r.division.class.name} ${r.division.name}`) } };
+      const teaches = [...new Set(rows.map((r) => `${r.subject.name}: ${r.division.class.name} ${r.division.name}`))];
+      return { data: { teaches }, blocks: [{ type: "summary", title: "What I teach", points: teaches.length ? teaches.slice(0, 6) : ["No assignments yet."] }] };
     },
   },
   {
@@ -67,7 +96,8 @@ const TOOLS: ToolDef[] = [
     roles: ["STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN"],
     async run(s) {
       const rows = await prisma.notification.findMany({ where: { userId: s.userId, readAt: null }, orderBy: { createdAt: "desc" }, take: 5, select: { title: true, body: true } });
-      return { data: { unread: rows.map((r) => (r.body ? `${r.title}: ${r.body.slice(0, 120)}` : r.title)) } };
+      const unread = rows.map((r) => (r.body ? `${r.title}: ${r.body.slice(0, 120)}` : r.title));
+      return { data: { unread }, blocks: [{ type: "summary", title: "Unread notifications", points: unread.length ? unread : ["You are all caught up."] }] };
     },
   },
   {
@@ -225,6 +255,61 @@ const TOOLS: ToolDef[] = [
       const other = rows.reduce((a, r) => a + r._count._all, 0) - ok - bad - lock;
       const slices = [{ label: "Successful", value: ok }, { label: "Failed", value: bad }, { label: "Locked or rate-limited", value: lock }, { label: "Other", value: other }].filter((x) => x.value > 0);
       return { data: { last24h: { ok, failed: bad, locked: lock, other } }, blocks: slices.length ? [{ type: "donut", title: "Sign-ins, last 24 hours", slices }] : [] };
+    },
+  },
+  {
+    name: "open_page",
+    description: "Show shortcut links to pages the user can open (for example 'open smart id cards', 'go to the library'). Pass an optional query; with no query it lists every page for the role.",
+    parameters: { type: "object", properties: { query: { type: "string" } }, additionalProperties: false },
+    roles: ["STUDENT", "TEACHER", ...ADMINS],
+    async run(s, args) {
+      const all = PAGES[s.role] ?? [];
+      const q = str(args.query, 40).toLowerCase().trim();
+      const words = q.split(/\s+/).filter((w) => w.length > 1);
+      const hit = words.length ? all.filter((p) => words.some((w) => (p.label + " " + p.k).toLowerCase().includes(w))) : all;
+      const items = (hit.length ? hit : all).slice(0, 6).map((p) => ({ label: p.label, href: p.href, hint: p.hint }));
+      return { data: { pages: items.map((i) => i.label) }, blocks: [{ type: "links", items }] };
+    },
+  },
+  {
+    name: "card_status",
+    description: "Smart ID cards by status (active, suspended, revoked, replaced) with the number of people who still have no active card.",
+    parameters: none,
+    roles: ADMINS,
+    async run(s) {
+      const i = s.institutionId;
+      const [groups, people, withActive] = await Promise.all([
+        prisma.smartIdCredential.groupBy({ by: ["status"], where: { institutionId: i }, _count: { _all: true } }),
+        prisma.user.count({ where: { institutionId: i, status: "ACTIVE", OR: [{ student: { isNot: null } }, { teacher: { isNot: null } }] } }),
+        prisma.smartIdCredential.findMany({ where: { institutionId: i, status: "ACTIVE" }, distinct: ["userId"], select: { userId: true } }),
+      ]);
+      const slices = groups.map((g) => ({ label: g.status[0] + g.status.slice(1).toLowerCase(), value: g._count._all })).filter((x) => x.value > 0);
+      const missing = Math.max(0, people - withActive.length);
+      return { data: { byStatus: slices, peopleWithoutActiveCard: missing }, blocks: [...(slices.length ? [{ type: "donut" as const, title: "Smart ID cards by status", slices }] : []), { type: "stats" as const, items: [{ label: "With active card", value: withActive.length }, { label: "Without a card", value: missing }] }] };
+    },
+  },
+  {
+    name: "my_attendance",
+    description: "The student's own attendance for the last 30 days, as a chart.",
+    parameters: none,
+    roles: ["STUDENT"],
+    async run(s) {
+      const sp = await prisma.studentProfile.findUnique({ where: { userId: s.userId }, select: { id: true } });
+      if (!sp) return { data: { error: "No student profile." } };
+      const since = new Date(Date.now() - 30 * 86_400_000);
+      const g = await prisma.attendance.groupBy({ by: ["status"], where: { studentId: sp.id, date: { gte: since } }, _count: { _all: true } });
+      const slices = g.map((x) => ({ label: x.status.replace("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()), value: x._count._all }));
+      return { data: { last30Days: slices }, blocks: slices.length ? [{ type: "donut", title: "My attendance, last 30 days", slices }] : [{ type: "summary", title: "My attendance", points: ["No attendance has been recorded in the last 30 days."] }] };
+    },
+  },
+  {
+    name: "mark_notifications_read",
+    description: "Mark ALL of the caller's own unread notifications as read. Only call when the user explicitly asks to mark or clear them.",
+    parameters: none,
+    roles: ["STUDENT", "TEACHER", ...ADMINS],
+    async run(s) {
+      const r = await prisma.notification.updateMany({ where: { userId: s.userId, readAt: null }, data: { readAt: new Date() } });
+      return { data: { markedRead: r.count }, blocks: [{ type: "summary", title: "Notifications", points: [r.count ? `Marked ${r.count} notification${r.count === 1 ? "" : "s"} as read.` : "You had no unread notifications."] }] };
     },
   },
   {
