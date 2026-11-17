@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { TopProgress } from "@/components/ui/TopProgress";
+import Link from "next/link";
+import { Logo } from "@/components/ui/Logo";
 import { NotificationBell } from "./NotificationBell";
 import type { ShellUser } from "@/providers/permissions-provider";
 
@@ -18,7 +20,7 @@ interface HeaderProps {
 }
 
 /** Top bar (`.ds-topbar`): search pill (Ctrl K) · notifications, theme toggle and user menu. */
-export function Header({ user, onOpenCommandPalette, onOpenAccount, onToggleCopilot, copilotOpen }: HeaderProps) {
+export function Header({ homeHref, user, onOpenCommandPalette, onOpenAccount, onToggleCopilot, copilotOpen }: HeaderProps) {
   const roleDisplay = user.role.replace(/_/g, " ").toLowerCase();
   const displayName = user.fullName;
   const [userOpen, setUserOpen] = useState(false);
@@ -52,7 +54,11 @@ export function Header({ user, onOpenCommandPalette, onOpenAccount, onToggleCopi
     <header className="ds-topbar">
       <TopProgress />
 
-      <div className="ds-topbar-left" aria-hidden="true" />
+      <div className="ds-topbar-left">
+        <Link href={homeHref} className="ds-brand" aria-label="Campus 2035 home">
+          <Logo size={34} variant="inverted" />
+        </Link>
+      </div>
 
       <div className="ds-topbar-center">
         <button type="button" className="ds-search" onClick={onOpenCommandPalette} aria-label="Search workspace">
@@ -68,7 +74,7 @@ export function Header({ user, onOpenCommandPalette, onOpenAccount, onToggleCopi
         </button>
 
         {onToggleCopilot && (
-          <button type="button" className="ds-icon-btn" onClick={onToggleCopilot} aria-label="AI Copilot" aria-pressed={copilotOpen} title="AI Copilot">
+          <button type="button" className="ds-icon-btn" onClick={onToggleCopilot} aria-label="AI Copilot" aria-pressed={copilotOpen === undefined ? undefined : copilotOpen} title="AI Copilot">
             <Icon name="sparkles" size={19} />
           </button>
         )}

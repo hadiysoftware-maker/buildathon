@@ -15,7 +15,7 @@ const SUGGEST: Record<string, string[]> = {
 };
 
 /** Right-hand Copilot panel with chat history. Opened from the top bar; streams from /api/ai/chat. */
-export function CopilotDrawer({ open, onClose, role }: { open: boolean; onClose: () => void; role: string }) {
+export function CopilotDrawer({ open, onClose, role }: { open?: boolean; onClose: () => void; role: string }) {
   const [view, setView] = useState<"chat" | "history">("chat");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [convos, setConvos] = useState<Convo[]>([]);
@@ -31,13 +31,13 @@ export function CopilotDrawer({ open, onClose, role }: { open: boolean; onClose:
   }, []);
 
   useEffect(() => {
-    if (open) void loadHistory();
+    if (open !== false) void loadHistory();
   }, [open, loadHistory]);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [msgs, view]);
   useEffect(() => {
-    if (!open) return;
+    if (open !== true) return;
     const k = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -112,8 +112,8 @@ export function CopilotDrawer({ open, onClose, role }: { open: boolean; onClose:
 
   return (
     <>
-      {open && <div className="cp-scrim" onClick={onClose} aria-hidden="true" />}
-      <aside className="cp-drawer" data-open={open} aria-hidden={!open} aria-label="AI Copilot">
+      <div className="cp-scrim" data-open={open === true} onClick={onClose} aria-hidden="true" />
+      <aside className="cp-drawer" data-open={open} aria-hidden={open === false} aria-label="AI Copilot">
         <header className="cp-head">
           <strong style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Icon name="sparkles" size={18} /> Copilot

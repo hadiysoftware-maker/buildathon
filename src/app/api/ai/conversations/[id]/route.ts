@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin, handle } from "@/lib/api";
 import { requirePermission } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
+import { decryptChat } from "@/lib/ai/crypto";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -12,7 +13,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     const c = await prisma.aIConversation.findFirst({ where: { id, userId: s.userId }, select: { id: true } });
     if (!c) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
     const messages = await prisma.aIMessage.findMany({ where: { conversationId: id, role: { in: ["USER", "ASSISTANT"] } }, orderBy: { createdAt: "asc" }, take: 200, select: { id: true, role: true, content: true } });
-    return NextResponse.json({ messages });
+    return NextResponse.json({ messages: messages.map((m) => ({ ...m, content: decryptChat(s.userId, m.content) })) });
   });
 }
 

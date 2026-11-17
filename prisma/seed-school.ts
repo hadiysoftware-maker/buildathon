@@ -186,7 +186,7 @@ export async function seedSchool(prisma: PrismaClient, institutionId: string) {
   for (const p of people) {
     const u = await prisma.user.findUniqueOrThrow({ where: { id: p.userId }, select: { username: true, passwordHash: true } });
     if (u.username && u.passwordHash) continue;
-    const base = p.name.toLowerCase().replace(/[^a-zs]/g, "").trim().replace(/s+/g, ".");
+    const base = p.name.toLowerCase().replace(/[^a-z\s]/g, "").trim().replace(/\s+/g, ".");
     let username = base;
     for (let i = 2; await prisma.user.findFirst({ where: { institutionId, username } }); i++) username = base + i;
     const password = randomBytes(9).toString("base64url");
@@ -194,9 +194,7 @@ export async function seedSchool(prisma: PrismaClient, institutionId: string) {
     logins.push(`${p.code},"${p.name}","${p.role}",${username},${password}`);
     given++;
   }
-  if (given) writeFileSync(".seed/logins.csv", logins.join("
-") + "
-");
+  if (given) writeFileSync(".seed/logins.csv", logins.join("\n") + "\n");
 
   console.log(`School demo: ${teachers.length} teachers, ${divisions.length} divisions, ${n} students, ${entries.length} timetable slots.`);
   console.log(given ? `Created ${given} username/password logins → .seed/logins.csv (only copy of the passwords).` : "All demo people already have logins.");

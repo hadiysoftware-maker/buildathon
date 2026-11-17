@@ -1596,7 +1596,8 @@ input:-webkit-autofill {
 
 
 /* Copilot drawer (right side) */
-.cp-scrim { position: fixed; inset: 0; z-index: 54; background: rgba(15, 40, 38, 0.28); }
+.cp-scrim { position: fixed; inset: 0; z-index: 54; background: rgba(11, 42, 44, 0.34); backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+.cp-scrim[data-open="true"] { opacity: 1; pointer-events: auto; }
 .cp-drawer {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(400px, 100vw);
   display: flex; flex-direction: column; background: var(--md-surface, #fff); color: var(--md-on-surface);
@@ -1614,3 +1615,50 @@ input:-webkit-autofill {
 .cp-row[data-active="true"] { background: var(--md-surface-container-low); }
 .cp-row-main { flex: 1; min-width: 0; display: grid; gap: 2px; text-align: left; padding: 8px 10px; background: none; border: 0; cursor: pointer; color: inherit; font: inherit; }
 @media (prefers-reduced-motion: reduce) { .cp-drawer { transition: none; } }
+
+
+/* Copilot: slide + fade open/close (overlay on small screens, docked panel on wide screens) */
+.cp-drawer { transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease, visibility 0s linear 0.32s; opacity: 0; }
+.cp-drawer[data-open="true"] { opacity: 1; transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease; }
+.cp-msg { animation: cp-pop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: bottom left; }
+.cp-msg[data-role="USER"] { transform-origin: bottom right; }
+.cp-body > * { animation: cp-rise 0.3s ease both; }
+@keyframes cp-pop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes cp-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (min-width: 1200px) {
+  .cp-drawer {
+    position: sticky; top: 68px; align-self: flex-start; flex: none; height: calc(100vh - 84px); z-index: 1;
+    width: 360px; margin-left: 16px; border: 1px solid var(--md-outline-variant); border-radius: 24px; box-shadow: none; overflow: hidden;
+    transform: none; visibility: visible; opacity: 1;
+    transition: width 0.34s cubic-bezier(0.22, 1, 0.36, 1), margin 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, border-color 0.34s ease;
+  }
+  .cp-drawer > * { min-width: 360px; }
+  .cp-drawer[data-open="false"] { width: 0; margin-left: 0; opacity: 0; border-color: transparent; pointer-events: none; }
+  .cp-scrim { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .cp-drawer, .cp-scrim, .cp-msg, .cp-body > * { transition: none !important; animation: none !important; } }
+
+/* ---------- Top bar: deep-teal brand bar ---------- */
+.ds-topbar {
+  background: linear-gradient(100deg, #0B4F4A 0%, #0F766E 100%);
+  color: #fff; border-radius: 0 0 24px 24px; margin: 0 16px; box-shadow: 0 6px 20px rgba(11, 79, 74, 0.22);
+}
+.ds-topbar .ds-search {
+  background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.28); box-shadow: none; color: rgba(255, 255, 255, 0.86);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.ds-topbar .ds-search svg { color: #fff; }
+.ds-topbar .ds-search:hover { background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.5); }
+.ds-topbar .ds-search:focus-visible, .ds-topbar .ds-icon-btn:focus-visible, .ds-topbar .ds-userpill:focus-visible { outline: 2px solid #F5B83D; outline-offset: 2px; }
+.ds-topbar .ds-kbd { background: rgba(255, 255, 255, 0.2); color: #fff; }
+.ds-topbar .ds-icon-btn, .ds-topbar .ds-userpill {
+  background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.28); box-shadow: none; color: #fff;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+.ds-topbar .ds-icon-btn:hover, .ds-topbar .ds-userpill:hover { background: rgba(255, 255, 255, 0.24); border-color: rgba(255, 255, 255, 0.5); }
+.ds-topbar .ds-icon-btn:active { transform: scale(0.94); }
+.ds-topbar .ds-icon-btn[aria-pressed="true"] { background: #F5B83D; border-color: #F5B83D; color: #0B2A2C; }
+.ds-topbar .ds-userpill svg { color: rgba(255, 255, 255, 0.85); }
+.ds-topbar .ds-userpill-name { color: #fff; }
+.ds-topbar .ds-brand { color: #fff; }
+@media (max-width: 1024px) { .ds-topbar { margin: 0 10px; border-radius: 0 0 20px 20px; } }

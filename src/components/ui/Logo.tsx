@@ -1,36 +1,39 @@
 /**
- * Campus 2035 brand mark: an open book (learning) under a rising spark (the next decade),
- * on a deep-teal squircle. Colours are fixed brand values, not theme tokens, so the mark never changes.
+ * Campus 2035 brand mark: a bold "C" ring (Campus) whose opening holds one amber square, a single cell of a
+ * Smart ID code. Brand colours are fixed values (not theme tokens) so the mark never changes with the UI.
+ * Variants: "color" (default), "mono" (one colour), "inverted" (for dark teal fields), "tile" (app icon / favicon).
  */
-export function LogoMark({ size = 32 }: { size?: number }) {
+type Variant = "color" | "mono" | "inverted" | "tile";
+
+const RING = "M43 21.1A17 17 0 1 0 43 42.9";
+
+export function LogoMark({ size = 32, variant = "color" }: { size?: number; variant?: Variant }) {
+  const ring = variant === "mono" ? "#0B2A2C" : variant === "color" ? "#0F766E" : "#FFFFFF";
+  const cell = variant === "mono" ? "#0B2A2C" : "#F5B83D";
   return (
     <span className="inline-flex items-center justify-center shrink-0 select-none" style={{ width: size, height: size }} aria-hidden="true">
       <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="c35-g" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#14A394" />
-            <stop offset="1" stopColor="#0B5D57" />
-          </linearGradient>
-        </defs>
-        <rect width="64" height="64" rx="18" fill="url(#c35-g)" />
-        <path d="M32 24.5c-4.2-3.2-9.8-4.2-16-3.5v21c6.2-.7 11.8.3 16 3.5 4.2-3.2 9.8-4.2 16-3.5v-21c-6.2-.7-11.8.3-16 3.5Z" fill="#fff" />
-        <path d="M32 24.5v21" stroke="#0F766E" strokeWidth="2.2" strokeLinecap="round" />
-        <path d="M46 8l1.8 4.2L52 14l-4.2 1.8L46 20l-1.8-4.2L40 14l4.2-1.8L46 8Z" fill="#FFD66B" />
+        {variant === "tile" && <rect width="64" height="64" rx="16" fill="#0B4F4A" />}
+        <g transform={variant === "tile" ? "translate(1 0)" : undefined}>
+          <path d={variant === "tile" ? "M44 18.6A17 17 0 1 0 44 45.4" : RING} stroke={ring} strokeWidth="9" strokeLinecap="round" />
+          <rect x={variant === "tile" ? 43 : 45} y="28" width="9" height="8" rx="2.5" fill={cell} />
+        </g>
       </svg>
     </span>
   );
 }
 
-export function Logo({ size = 30, sub = "Smart classroom OS" }: { size?: number; sub?: string }) {
+export function Logo({ size = 30, sub = "Smart classroom OS", variant = "color" }: { size?: number; sub?: string; variant?: Variant }) {
+  const light = variant === "inverted";
   return (
     <span className="inline-flex items-center gap-2.5 min-w-0">
-      <LogoMark size={size} />
+      <LogoMark size={size} variant={variant} />
       <span className="flex flex-col leading-none min-w-0">
-        <span className="font-heading font-bold text-base tracking-tight truncate" style={{ color: "var(--md-on-surface)" }}>
-          Campus<span style={{ color: "#0F766E" }}> 2035</span>
+        <span className="font-heading font-bold text-base tracking-tight truncate" style={{ color: light ? "#FFFFFF" : "#0B2A2C" }}>
+          Campus<span style={{ color: light ? "#F5B83D" : "#0F766E" }}> 2035</span>
         </span>
         {sub ? (
-          <span className="hidden sm:block text-[10px] font-medium uppercase tracking-wider truncate mt-0.5" style={{ color: "var(--md-on-surface-variant)" }}>
+          <span className="hidden sm:block text-[10px] font-medium uppercase tracking-wider truncate mt-0.5" style={{ color: light ? "rgba(255,255,255,0.8)" : "#4B6B6D" }}>
             {sub}
           </span>
         ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
@@ -13,6 +13,14 @@ import { AccountDialog } from "./AccountDialog";
 import { PermissionsProvider, type ShellUser } from "@/providers/permissions-provider";
 import { Icon } from "@/components/ui/Icon";
 import { getPageTitle } from "@/lib/nav-config";
+
+const CP_KEY = "c35_copilot";
+const cpSubscribe = (cb: () => void) => {
+  window.addEventListener("c35-copilot", cb);
+  return () => window.removeEventListener("c35-copilot", cb);
+};
+/** "open" | "closed" | null (null = default: docked open on wide screens, hidden on small ones). */
+const cpPref = () => { try { return localStorage.getItem(CP_KEY); } catch { return null; } };
 
 function PanelCrumbs({ pathname, homeHref }: { pathname: string; homeHref: string }) {
   const segments = pathname.split("/").filter(Boolean);
@@ -64,7 +72,16 @@ export function DashboardShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [copilotOpen, setCopilotOpen] = useState(false);
+  const pref = useSyncExternalStore(cpSubscribe, cpPref, () => null);
+  const copilotOpen = pref === "open" ? true : pref === "closed" ? false : undefined;
+  const setCopilot = (open: boolean) => {
+    try { localStorage.setItem(CP_KEY, open ? "open" : "closed"); } catch { /* ignore */ }
+    window.dispatchEvent(new Event("c35-copilot"));
+  };
+  const toggleCopilot = () => {
+    const wide = window.matchMedia("(min-width: 1200px)").matches;
+    setCopilot(!(copilotOpen ?? wide));
+  };
   const hasCopilot = allowedModules.includes("ai.use");
   const pageName = useMemo(() => getPageTitle(pathname), [pathname]);
 
@@ -90,8 +107,8 @@ export function DashboardShell({
           onMenuClick={() => setDrawerOpen(true)}
           onOpenCommandPalette={() => setPaletteOpen(true)}
           onOpenAccount={() => setAccountOpen(true)}
-          onToggleCopilot={hasCopilot ? () => setCopilotOpen((v) => !v) : undefined}
-          copilotOpen={copilotOpen}
+          onToggleCopilot={hasCopilot ? toggleCopilot : undefined}
+          copilotOpen={copilotOpen ?? undefined}
         />
         <div className="ds-body">
           <Sidebar user={user} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
@@ -101,11 +118,11 @@ export function DashboardShell({
               {children}
             </main>
           </div>
+          {hasCopilot && <CopilotDrawer open={copilotOpen} onClose={() => setCopilot(false)} role={user.role} />}
         </div>
         <MobileBottomNav userRole={user.role} />
         <ResponsiveTables />
         <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} userRole={user.role} />
-        {hasCopilot && <CopilotDrawer open={copilotOpen} onClose={() => setCopilotOpen(false)} role={user.role} />}
         <AccountDialog open={accountOpen} onClose={() => setAccountOpen(false)} user={user} />
       </div>
     </PermissionsProvider>

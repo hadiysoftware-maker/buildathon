@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import type { CurrentSession } from "@/lib/auth/session";
 import { aiConfigured } from "@/lib/ai/gateway";
 import { suggestionsFor } from "@/lib/ai/context";
+import { decryptChat } from "@/lib/ai/crypto";
 import { CopilotChat } from "./CopilotChat";
 
 /** Server half of the copilot page, shared by the admin, teacher and student portals. */
@@ -19,9 +20,9 @@ export async function CopilotPage({ s, searchParams, base, eyebrow }: { s: Curre
       base={base}
       eyebrow={eyebrow}
       aiReady={aiConfigured()}
-      conversations={conversations}
+      conversations={conversations.map((x) => ({ ...x, title: decryptChat(s.userId, x.title) }))}
       activeId={active?.id ?? null}
-      initial={messages.map((m) => ({ id: m.id, role: m.role as "USER" | "ASSISTANT", content: m.content }))}
+      initial={messages.map((m) => ({ id: m.id, role: m.role as "USER" | "ASSISTANT", content: decryptChat(s.userId, m.content) }))}
       suggestions={suggestionsFor(s.role)}
     />
   );
